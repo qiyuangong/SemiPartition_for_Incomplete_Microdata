@@ -33,7 +33,7 @@ from utils.utility import list_to_str, cmp_str
 
 __DEBUG = False
 QI_LEN = 10
-GL_L = 5
+GL_K = 5
 RESULT = []
 ATT_TREES = []
 QI_RANGE = []
@@ -70,54 +70,6 @@ class Partition(object):
         return the number of records in partition
         """
         return len(self.member)
-
-
-def check_diversity(data):
-    """
-    check the distinct SA values in dataset
-    """
-    sa_dict = {}
-    for record in data:
-        try:
-            sa_value = list_to_str(record[-1])
-        except AttributeError:
-            sa_value = record[-1]
-        try:
-            sa_dict[sa_value] += 1
-        except KeyError:
-            sa_dict[sa_value] = 1
-    return len(sa_dict.keys())
-
-
-def check_L_diversity(partition):
-    """check if partition satisfy l-diversity
-    return True if satisfy, False if not.
-    """
-    sa_dict = {}
-    if len(partition) < GL_L:
-        return False
-    if isinstance(partition, Partition):
-        records_set = partition.member
-    else:
-        records_set = partition
-    num_record = len(records_set)
-    for record in records_set:
-        try:
-            sa_value = list_to_str(record[-1])
-        except AttributeError:
-            sa_value = record[-1]
-        try:
-            sa_dict[sa_value] += 1
-        except KeyError:
-            sa_dict[sa_value] = 1
-    if len(sa_dict.keys()) < GL_L:
-        return False
-    for sa_value in sa_dict.keys():
-        # if any SA value appear more than |T|/l,
-        # the partition does not satisfy l-diversity
-        if sa_dict[sa_value] > 1.0 * num_record / GL_L:
-            return False
-    return True
 
 
 def get_normalized_width(partition, index):
@@ -180,7 +132,7 @@ def find_median(partition, dim):
     value_list.sort(cmp=cmp_str)
     total = sum(frequency.values())
     middle = total / 2
-    if middle < GL_L:
+    if middle < GL_K:
         return '', ''
     index = 0
     split_index = 0
@@ -259,7 +211,7 @@ def anonymize(partition):
                 else:
                     # rhs = (means, high]
                     rhs.append(record)
-            if check_L_diversity(lhs) is False or check_L_diversity(rhs) is False:
+            if len(lhs) < GL_K or len(rhs) < GL_K:
                 partition.allow[dim] = 0
                 continue
             # anonymize sub-partition
@@ -292,7 +244,7 @@ def anonymize(partition):
             for sub_partition in sub_partitions:
                 if len(sub_partition) == 0:
                     continue
-                if check_L_diversity(sub_partition) is False:
+                if len(sub_partition) < GL_K:
                     flag = False
                     break
             if flag:
@@ -311,11 +263,11 @@ def anonymize(partition):
     RESULT.append(partition)
 
 
-def init(att_trees, data, L, QI_num=-1):
+def init(att_trees, data, k, QI_num=-1):
     """
     resset global variables
     """
-    global GL_L, RESULT, QI_LEN, ATT_TREES, QI_RANGE, IS_CAT
+    global GL_K, RESULT, QI_LEN, ATT_TREES, QI_RANGE, IS_CAT
     ATT_TREES = att_trees
     if QI_num <= 0:
         QI_LEN = len(data[0]) - 1
@@ -326,20 +278,20 @@ def init(att_trees, data, L, QI_num=-1):
             IS_CAT.append(False)
         else:
             IS_CAT.append(True)
-    GL_L = L
+    GL_K = k
     RESULT = []
     QI_RANGE = []
 
 
-def mondrian_l_diversity(att_trees, data, l, QI_num=-1):
+def mondrian(att_trees, data, k, QI_num=-1):
     """
-    Mondrian for l-diversity.
+    Mondrian for k-anonymity.
     This fuction support both numeric values and categoric values.
     For numeric values, each iterator is a mean split.
     For categoric values, each iterator is a split on GH.
     The final result is returned in 2-dimensional list.
     """
-    init(att_trees, data, l, QI_num)
+    init(att_trees, data, k, QI_num)
     middle = []
     result = []
     wtemp = []
@@ -372,10 +324,9 @@ def mondrian_l_diversity(att_trees, data, l, QI_num=-1):
     ncp /= len(data)
     ncp *= 100
     if __DEBUG:
-        print "L=%d" % l
+        print "K=%d" % k
         from decimal import Decimal
         print "Discernability Penalty=%.2E" % Decimal(str(dp))
-        print "Diversity", check_diversity(data)
         # If the number of raw data is not eual to number published data
         # there must be some problems.
         print "size of partitions", len(RESULT)
@@ -387,3 +338,48 @@ def mondrian_l_diversity(att_trees, data, l, QI_num=-1):
         print "Error: lose records"
         pdb.set_trace()
     return (result, (ncp, rtime))
+
+
+def mondrian_split_missing(att_trees, data, k, QI_num=-1):
+    """
+    Mondrian for k-anonymity.
+    This fuction support both numeric values and categoric values.
+    For numeric values, each iterator is a mean split.
+    For categoric values, each iterator is a split on GH.
+    The final result is returned in 2-dimensional list.
+    """
+    remain_data = []
+    missing_data = []
+    result = []
+    eval_result = [0, 0]
+    for record in data:
+        if '?' in record:
+            missing_data.append(record)
+        else:
+            remain_data.append(record)
+    missing_result, missing_eval = mondrian(att_trees, missing_data, k, QI_num)
+    remain_result, remain_eval = mondrian(att_trees, remain_data, k, QI_num)
+    result = missing_result + remain_result
+    eval_result[0] = len(missing_data) * missing_eval[0] \
+        + len(remain_data) * remain_eval[0]
+    eval_result[0] = eval_result[0] * 1.0 / len(data)
+    eval_result[1] = missing_eval[1] + remain_eval[1]
+    return (result, eval_result)
+
+
+def mondrian_delete_missing(att_trees, data, k, QI_num=-1):
+    """
+    Mondrian for k-anonymity.
+    This fuction support both numeric values and categoric values.
+    For numeric values, each iterator is a mean split.
+    For categoric values, each iterator is a split on GH.
+    The final result is returned in 2-dimensional list.
+    """
+    remain_data = []
+    for record in data:
+        if '?' in record:
+            continue
+        else:
+            remain_data.append(record)
+    print "Number of remain records", len(remain_data)
+    return mondrian(att_trees, remain_data, k, QI_num)

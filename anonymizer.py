@@ -5,13 +5,12 @@ run semi_partition with given parameters
 # !/usr/bin/env python
 # coding=utf-8
 from semi_partition import semi_partition
-from utils.read_adult_data import read_data as read_adult
-from utils.read_adult_data import read_tree as read_adult_tree
-from utils.read_informs_data import read_data as read_informs
-from utils.read_informs_data import read_tree as read_informs_tree
+from mondrian import mondrian_delete_missing
+from mondrian import mondrian_split_missing
+from mondrian import mondrian
+from utils.read_data import read_data
+from utils.read_data import read_tree
 import sys, copy, random
-
-DATA_SELECT = 'a'
 
 
 def get_result_one(att_trees, data, K=10):
@@ -45,11 +44,14 @@ def get_result_dataset(att_trees, data, K=10, n=10):
     length = len(data_back)
     print "K=%d" % K
     joint = 5000
-    h = length / joint
+    datasets = []
+    check_time = length / joint
     if length % joint == 0:
-        h += 1
-    for i in range(1, h + 1):
-        pos = i * joint
+        check_time -= 1
+    for i in range(check_time):
+        datasets.append(joint * (i + 1))
+    datasets.append(len(data))
+    for pos in datasets:
         ncp = rtime = 0
         if pos > length:
             continue
@@ -88,22 +90,12 @@ if __name__ == '__main__':
     FLAG = ''
     LEN_ARGV = len(sys.argv)
     try:
-        DATA_SELECT = sys.argv[1]
         FLAG = sys.argv[2]
     except:
         pass
     K = 10
-    if DATA_SELECT == 'i':
-        RAW_DATA = read_informs()
-        ATT_TREES = read_informs_tree()
-    else:
-        RAW_DATA = read_adult()
-        ATT_TREES = read_adult_tree()
-    print '#' * 30
-    if DATA_SELECT == 'a':
-        print "Adult data"
-    else:
-        print "INFORMS data"
+    RAW_DATA = read_data()
+    ATT_TREES = read_tree()
     print '#' * 30
     if FLAG == 'k':
         get_result_k(ATT_TREES, RAW_DATA)
