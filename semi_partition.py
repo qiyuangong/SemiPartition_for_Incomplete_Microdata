@@ -40,6 +40,7 @@ class Partition(object):
         """
         self.member = list(data)
         self.width = list(width)
+        self.is_missing = [True] * QI_LEN
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 

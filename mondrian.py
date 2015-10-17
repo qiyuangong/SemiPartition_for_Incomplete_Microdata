@@ -28,7 +28,7 @@ import pdb
 import time
 from models.numrange import NumRange
 from models.gentree import GenTree
-from utils.utility import list_to_str, cmp_str
+from utils.utility import cmp_str
 
 
 __DEBUG = False
@@ -56,6 +56,7 @@ class Partition(object):
         """
         self.member = data[:]
         self.width = list(width)
+        self.is_missing = [True] * QI_LEN
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 
@@ -77,6 +78,8 @@ def get_normalized_width(partition, index):
     return Normalized width of partition
     similar to NCP
     """
+    if partition.width[index] == '*':
+        return 1.0
     if IS_CAT[index] is False:
         low = partition.width[index][0]
         high = partition.width[index][1]
@@ -133,7 +136,7 @@ def find_median(partition, dim):
     total = sum(frequency.values())
     middle = total / 2
     if middle < GL_K:
-        return '', ''
+        return '', '', '', ''
     index = 0
     split_index = 0
     for i, qid_value in enumerate(value_list):
@@ -148,7 +151,7 @@ def find_median(partition, dim):
         nextVal = value_list[split_index + 1]
     except IndexError:
         nextVal = splitVal
-    return (splitVal, nextVal)
+    return (splitVal, nextVal, value_list[0], value_list[-1])
 
 
 def split_numeric_value(numeric_value, splitVal, nextVal):
@@ -167,7 +170,7 @@ def split_numeric_value(numeric_value, splitVal, nextVal):
             lvalue = low
         else:
             lvalue = low + ',' + splitVal
-        if high == splitVal:
+        if high == nextVal:
             rvalue = high
         else:
             rvalue = nextVal + ',' + high
@@ -176,12 +179,11 @@ def split_numeric_value(numeric_value, splitVal, nextVal):
 
 def anonymize(partition):
     """
-    Main procedure of mondrian_l_diversity.
+    Main procedure of mondrian.
     recursively partition groups until not allowable.
     """
+    # pdb.set_trace()
     allow_count = sum(partition.allow)
-    pwidth = partition.width
-    pmiddle = partition.middle
     for index in range(allow_count):
         dim = choose_dimension(partition)
         if dim == -1:
@@ -189,21 +191,38 @@ def anonymize(partition):
             pdb.set_trace()
         if IS_CAT[dim] is False:
             # numeric attributes
-            (splitVal, nextVal) = find_median(partition, dim)
+            (splitVal, nextVal, low, high) = find_median(partition, dim)
             if splitVal == '':
                 partition.allow[dim] = 0
                 continue
             middle_pos = ATT_TREES[dim].dict[splitVal]
+            p_low = ATT_TREES[dim].dict[low]
+            p_high = ATT_TREES[dim].dict[high]
+            if low == high:
+                partition.middle[dim] = low
+            else:
+                partition.middle[dim] = low + ',' + high
+            partition.width[dim] = (p_low, p_high)
+            pwidth = partition.width
+            pmiddle = partition.middle
             lhs_middle = pmiddle[:]
             rhs_middle = pmiddle[:]
-            lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim], splitVal, nextVal)
+            mhs_middle = pmiddle[:]
+            lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
+                                                                   splitVal, nextVal)
             lhs_width = pwidth[:]
             rhs_width = pwidth[:]
+            mhs_middle[dim] = '*'
             lhs_width[dim] = (pwidth[dim][0], middle_pos)
             rhs_width[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
+            mhs_width = pwidth[:]
+            mhs_width[dim] = '*'
             lhs = []
             rhs = []
+            mhs = []
             for record in partition.member:
+                if record[dim] == '?':
+                    mhs.append(record)
                 pos = ATT_TREES[dim].dict[record[dim]]
                 if pos <= middle_pos:
                     # lhs = [low, means]
@@ -214,13 +233,25 @@ def anonymize(partition):
             if len(lhs) < GL_K or len(rhs) < GL_K:
                 partition.allow[dim] = 0
                 continue
+            elif len(mhs) > 0 and len(mhs) < GL_K:
+                partition.allow[dim] = 0
+                continue
             # anonymize sub-partition
             anonymize(Partition(lhs, lhs_width, lhs_middle))
             anonymize(Partition(rhs, rhs_width, rhs_middle))
+            if len(mhs) > 0:
+                anonymize(Partition(mhs, mhs_width, mhs_middle))
             return
         else:
+            pwidth = partition.width
+            pmiddle = partition.middle
+            mhs = []
+            mhs_width = pwidth[:]
+            mhs_middle = pmiddle[:]
+            mhs_middle[dim] = '*'
+            mhs_width[dim] = '*'
             # normal attributes
-            split_node = ATT_TREES[dim][partition.middle[dim]]
+            split_node = ATT_TREES[dim][pmiddle[dim]]
             if len(split_node.child) == 0:
                 partition.allow[dim] = 0
                 continue
@@ -238,8 +269,11 @@ def anonymize(partition):
                     except KeyError:
                         continue
                 else:
-                    print "Generalization hierarchy error!"
-                    pdb.set_trace()
+                    if qid_value == '?':
+                        mhs.append(record)
+                    else:
+                        print "Generalization hierarchy error!"
+                        pdb.set_trace()
             flag = True
             for sub_partition in sub_partitions:
                 if len(sub_partition) == 0:
@@ -247,6 +281,8 @@ def anonymize(partition):
                 if len(sub_partition) < GL_K:
                     flag = False
                     break
+            if len(mhs) > 0 and len(mhs) < GL_K:
+                flag = False
             if flag:
                 for i, sub_partition in enumerate(sub_partitions):
                     if len(sub_partition) == 0:
@@ -256,6 +292,8 @@ def anonymize(partition):
                     wtemp[dim] = len(sub_node[i])
                     mtemp[dim] = sub_node[i].value
                     anonymize(Partition(sub_partition, wtemp, mtemp))
+                if len(mhs) > 0:
+                    anonymize(Partition(mhs, mhs_width, mhs_middle))
                 return
             else:
                 partition.allow[dim] = 0
@@ -309,10 +347,8 @@ def mondrian(att_trees, data, k, QI_num=-1):
     anonymize(whole_partition)
     rtime = float(time.time() - start_time)
     ncp = 0.0
-    dp = 0.0
     for partition in RESULT:
         rncp = 0.0
-        dp += len(partition) ** 2
         for index in range(QI_LEN):
             rncp += get_normalized_width(partition, index)
         for index in range(len(partition)):
@@ -325,8 +361,6 @@ def mondrian(att_trees, data, k, QI_num=-1):
     ncp *= 100
     if __DEBUG:
         print "K=%d" % k
-        from decimal import Decimal
-        print "Discernability Penalty=%.2E" % Decimal(str(dp))
         # If the number of raw data is not eual to number published data
         # there must be some problems.
         print "size of partitions", len(RESULT)
