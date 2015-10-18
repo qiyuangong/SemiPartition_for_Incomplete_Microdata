@@ -1,5 +1,5 @@
 """
-main module of mondrian_l_diversity
+main module of mondrian
 """
 #!/usr/bin/env python
 # coding=utf-8
@@ -56,7 +56,7 @@ class Partition(object):
         """
         self.member = data[:]
         self.width = list(width)
-        self.is_missing = [True] * QI_LEN
+        self.is_missing = [False] * QI_LEN
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 
@@ -78,7 +78,7 @@ def get_normalized_width(partition, index):
     return Normalized width of partition
     similar to NCP
     """
-    if partition.width[index] == '*':
+    if partition.middle[index] == '*':
         return 1.0
     if IS_CAT[index] is False:
         low = partition.width[index][0]
@@ -132,11 +132,19 @@ def find_median(partition, dim):
     splitVal = ''
     nextVal = ''
     value_list = frequency.keys()
-    value_list.sort(cmp=cmp_str)
+    value_list = [t for t in value_list if t is not '?' and t is not '*']
+    try:
+        value_list.sort(cmp=cmp_str)
+    except:
+        print value_list
+        pdb.set_trace()
     total = sum(frequency.values())
     middle = total / 2
     if middle < GL_K:
-        return '', '', '', ''
+        try:
+            return ('', '', value_list[0], value_list[-1])
+        except IndexError:
+            return ('', '', '', '')
     index = 0
     split_index = 0
     for i, qid_value in enumerate(value_list):
@@ -182,47 +190,53 @@ def anonymize(partition):
     Main procedure of mondrian.
     recursively partition groups until not allowable.
     """
-    # pdb.set_trace()
     allow_count = sum(partition.allow)
     for index in range(allow_count):
+        # pdb.set_trace()
         dim = choose_dimension(partition)
         if dim == -1:
             print "Error: dim=-1"
             pdb.set_trace()
+        if partition.is_missing[dim]:
+            partition.allow[dim] = 0
+            continue
+        pwidth = partition.width
+        pmiddle = partition.middle
         if IS_CAT[dim] is False:
             # numeric attributes
             (splitVal, nextVal, low, high) = find_median(partition, dim)
             if splitVal == '':
+                if low == '':
+                    pmiddle[dim] = '*'
+                    pwidth = (0, 0)
+                    partition.is_missing[dim] = True
+                else:
+                    p_low = ATT_TREES[dim].dict[low]
+                    p_high = ATT_TREES[dim].dict[high]
+                    # update middle
+                    if low == high:
+                        pmiddle[dim] = low
+                    else:
+                        pmiddle[dim] = low + ',' + high
+                    pwidth[dim] = (p_low, p_high)
                 partition.allow[dim] = 0
                 continue
             middle_pos = ATT_TREES[dim].dict[splitVal]
-            p_low = ATT_TREES[dim].dict[low]
-            p_high = ATT_TREES[dim].dict[high]
-            if low == high:
-                partition.middle[dim] = low
-            else:
-                partition.middle[dim] = low + ',' + high
-            partition.width[dim] = (p_low, p_high)
-            pwidth = partition.width
-            pmiddle = partition.middle
             lhs_middle = pmiddle[:]
             rhs_middle = pmiddle[:]
-            mhs_middle = pmiddle[:]
             lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
                                                                    splitVal, nextVal)
             lhs_width = pwidth[:]
             rhs_width = pwidth[:]
-            mhs_middle[dim] = '*'
             lhs_width[dim] = (pwidth[dim][0], middle_pos)
             rhs_width[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
-            mhs_width = pwidth[:]
-            mhs_width[dim] = '*'
             lhs = []
             rhs = []
             mhs = []
             for record in partition.member:
-                if record[dim] == '?':
+                if record[dim] == '?' or record[dim] == '*':
                     mhs.append(record)
+                    continue
                 pos = ATT_TREES[dim].dict[record[dim]]
                 if pos <= middle_pos:
                     # lhs = [low, means]
@@ -230,26 +244,32 @@ def anonymize(partition):
                 else:
                     # rhs = (means, high]
                     rhs.append(record)
-            if len(lhs) < GL_K or len(rhs) < GL_K:
+            if len(lhs) > 0 and len(lhs) < GL_K:
                 partition.allow[dim] = 0
                 continue
-            elif len(mhs) > 0 and len(mhs) < GL_K:
+            if len(rhs) > 0 and len(rhs) < GL_K:
+                partition.allow[dim] = 0
+                continue
+            if len(mhs) > 0 and len(mhs) < GL_K:
                 partition.allow[dim] = 0
                 continue
             # anonymize sub-partition
-            anonymize(Partition(lhs, lhs_width, lhs_middle))
-            anonymize(Partition(rhs, rhs_width, rhs_middle))
+            if len(lhs) > 0:
+                anonymize(Partition(lhs, lhs_width, lhs_middle))
+            if len(rhs) > 0:
+                anonymize(Partition(rhs, rhs_width, rhs_middle))
             if len(mhs) > 0:
-                anonymize(Partition(mhs, mhs_width, mhs_middle))
+                mhs_middle = pmiddle[:]
+                mhs_middle[dim] = '*'
+                mhs_width = pwidth[:]
+                mhs_width[dim] = (0, 0)
+                p_mhs = Partition(mhs, mhs_width, mhs_middle)
+                p_mhs.is_missing[dim] = True
+                anonymize(p_mhs)
             return
         else:
-            pwidth = partition.width
-            pmiddle = partition.middle
+            # pdb.set_trace()
             mhs = []
-            mhs_width = pwidth[:]
-            mhs_middle = pmiddle[:]
-            mhs_middle[dim] = '*'
-            mhs_width[dim] = '*'
             # normal attributes
             split_node = ATT_TREES[dim][pmiddle[dim]]
             if len(split_node.child) == 0:
@@ -261,6 +281,9 @@ def anonymize(partition):
                 sub_partitions.append([])
             for record in partition.member:
                 qid_value = record[dim]
+                if qid_value == '?' or qid_value == '*':
+                    mhs.append(record)
+                    continue
                 for i, node in enumerate(sub_node):
                     try:
                         node.cover[qid_value]
@@ -269,11 +292,8 @@ def anonymize(partition):
                     except KeyError:
                         continue
                 else:
-                    if qid_value == '?':
-                        mhs.append(record)
-                    else:
-                        print "Generalization hierarchy error!"
-                        pdb.set_trace()
+                    print "Generalization hierarchy error!"
+                    pdb.set_trace()
             flag = True
             for sub_partition in sub_partitions:
                 if len(sub_partition) == 0:
@@ -293,7 +313,13 @@ def anonymize(partition):
                     mtemp[dim] = sub_node[i].value
                     anonymize(Partition(sub_partition, wtemp, mtemp))
                 if len(mhs) > 0:
-                    anonymize(Partition(mhs, mhs_width, mhs_middle))
+                    mhs_width = pwidth[:]
+                    mhs_middle = pmiddle[:]
+                    mhs_middle[dim] = '*'
+                    mhs_width[dim] = 0
+                    p_mhs = Partition(mhs, mhs_width, mhs_middle)
+                    p_mhs.is_missing[dim] = True
+                    anonymize(p_mhs)
                 return
             else:
                 partition.allow[dim] = 0
@@ -410,10 +436,16 @@ def mondrian_delete_missing(att_trees, data, k, QI_num=-1):
     The final result is returned in 2-dimensional list.
     """
     remain_data = []
+    num_removed_record = 0
+    eval_result = [0, 0]
     for record in data:
         if '?' in record:
+            num_removed_record += 1
             continue
         else:
             remain_data.append(record)
-    print "Number of remain records", len(remain_data)
-    return mondrian(att_trees, remain_data, k, QI_num)
+    # print "Number of remain records", len(remain_data)
+    result, eval_r = mondrian(att_trees, remain_data, k, QI_num)
+    eval_result[0] = (len(remain_data) * eval_r[0] + 100 * num_removed_record) / len(data)
+    eval_result[1] = eval_r[1]
+    return result, eval_result
