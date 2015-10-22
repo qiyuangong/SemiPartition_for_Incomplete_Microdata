@@ -133,14 +133,10 @@ def find_median(partition, dim):
     nextVal = ''
     value_list = frequency.keys()
     value_list = [t for t in value_list if t is not '?' and t is not '*']
-    try:
-        value_list.sort(cmp=cmp_str)
-    except:
-        print value_list
-        pdb.set_trace()
+    value_list.sort(cmp=cmp_str)
     total = sum(frequency.values())
     middle = total / 2
-    if middle < GL_K:
+    if middle < GL_K or len(value_list) <= 1:
         try:
             return ('', '', value_list[0], value_list[-1])
         except IndexError:
@@ -400,31 +396,31 @@ def mondrian(att_trees, data, k, QI_num=-1):
     return (result, (ncp, rtime))
 
 
-def mondrian_split_missing(att_trees, data, k, QI_num=-1):
-    """
-    Mondrian for k-anonymity.
-    This fuction support both numeric values and categoric values.
-    For numeric values, each iterator is a mean split.
-    For categoric values, each iterator is a split on GH.
-    The final result is returned in 2-dimensional list.
-    """
-    remain_data = []
-    missing_data = []
-    result = []
-    eval_result = [0, 0]
-    for record in data:
-        if '?' in record:
-            missing_data.append(record)
-        else:
-            remain_data.append(record)
-    missing_result, missing_eval = mondrian(att_trees, missing_data, k, QI_num)
-    remain_result, remain_eval = mondrian(att_trees, remain_data, k, QI_num)
-    result = missing_result + remain_result
-    eval_result[0] = len(missing_data) * missing_eval[0] \
-        + len(remain_data) * remain_eval[0]
-    eval_result[0] = eval_result[0] * 1.0 / len(data)
-    eval_result[1] = missing_eval[1] + remain_eval[1]
-    return (result, eval_result)
+# def mondrian_split_missing(att_trees, data, k, QI_num=-1):
+#     """
+#     Mondrian for k-anonymity.
+#     This fuction support both numeric values and categoric values.
+#     For numeric values, each iterator is a mean split.
+#     For categoric values, each iterator is a split on GH.
+#     The final result is returned in 2-dimensional list.
+#     """
+#     remain_data = []
+#     missing_data = []
+#     result = []
+#     eval_result = [0, 0]
+#     for record in data:
+#         if '?' in record:
+#             missing_data.append(record)
+#         else:
+#             remain_data.append(record)
+#     missing_result, missing_eval = mondrian(att_trees, missing_data, k, QI_num)
+#     remain_result, remain_eval = mondrian(att_trees, remain_data, k, QI_num)
+#     result = missing_result + remain_result
+#     eval_result[0] = len(missing_data) * missing_eval[0] \
+#         + len(remain_data) * remain_eval[0]
+#     eval_result[0] = eval_result[0] * 1.0 / len(data)
+#     eval_result[1] = missing_eval[1] + remain_eval[1]
+#     return (result, eval_result)
 
 
 def mondrian_delete_missing(att_trees, data, k, QI_num=-1):

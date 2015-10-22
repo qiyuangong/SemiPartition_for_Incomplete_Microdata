@@ -40,7 +40,7 @@ class Partition(object):
         """
         self.member = list(data)
         self.width = list(width)
-        self.is_missing = [True] * QI_LEN
+        self.is_missing = [False] * QI_LEN
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 
@@ -110,12 +110,15 @@ def find_median(partition, dim):
     frequency = frequency_set(partition, dim)
     splitVal = ''
     value_list = frequency.keys()
+    value_list = [t for t in value_list if t is not '?' and t is not '*']
     value_list.sort(cmp=cmp_str)
     total = sum(frequency.values())
     middle = total / 2
-    if middle < GL_K:
-        print "Error: size of group less than 2*K"
-        return ''
+    if middle < GL_K or len(value_list) <= 1:
+        try:
+            return ('', '', value_list[0], value_list[-1])
+        except IndexError:
+            return ('', '', '', '')
     index = 0
     split_index = 0
     for i, t in enumerate(value_list):
@@ -126,7 +129,7 @@ def find_median(partition, dim):
             break
     else:
         print "Error: cannot find splitVal"
-    return (splitVal, split_index)
+    return (splitVal, split_index, value_list[0], value_list[-1])
 
 
 def balance_partition(sub_partitions, leftover):
@@ -202,81 +205,101 @@ def split_numeric_value(numeric_value, splitVal):
         return lvalue, rvalue
 
 
+def split_numeric(partition, dim, pwidth, pmiddle):
+    sub_partitions = []
+    # numeric attributes
+    (splitVal, split_index, low, high) = find_median(partition, dim)
+    if splitVal == '':
+        if low == '':
+            pmiddle[dim] = '*'
+            pwidth = (0, 0)
+            partition.is_missing[dim] = True
+        else:
+            p_low = ATT_TREES[dim].dict[low]
+            p_high = ATT_TREES[dim].dict[high]
+            # update middle
+            if low == high:
+                pmiddle[dim] = low
+            else:
+                pmiddle[dim] = low + ',' + high
+            pwidth[dim] = (p_low, p_high)
+        return []
+    middle_pos = ATT_TREES[dim].dict[splitVal]
+    lmiddle = pmiddle[:]
+    rmiddle = pmiddle[:]
+    lmiddle[dim], rmiddle[dim] = split_numeric_value(pmiddle[dim], splitVal)
+    lhs = []
+    rhs = []
+    for temp in partition.member:
+        pos = ATT_TREES[dim].dict[temp[dim]]
+        if pos <= middle_pos:
+            # lhs = [low, means]
+            lhs.append(temp)
+        else:
+            # rhs = (mean, high]
+            rhs.append(temp)
+    lwidth = pwidth[:]
+    rwidth = pwidth[:]
+    lwidth[dim] = (pwidth[dim][0], split_index)
+    rwidth[dim] = (split_index + 1, pwidth[dim][1])
+    sub_partitions.append(Partition(lhs, lwidth, lmiddle))
+    sub_partitions.append(Partition(rhs, rwidth, rmiddle))
+    return sub_partitions
+
+
+def split_categoric(partition, dim, pwidth, pmiddle):
+    sub_partitions = []
+    # categoric attributes
+    if partition.middle[dim] != '*':
+        splitVal = ATT_TREES[dim][partition.middle[dim]]
+    else:
+        splitVal = ATT_TREES[dim]['*']
+    sub_node = [t for t in splitVal.child]
+    sub_groups = []
+    for i in range(len(sub_node)):
+        sub_groups.append([])
+    if len(sub_groups) == 0:
+        # split is not necessary
+        return []
+    for temp in partition.member:
+        qid_value = temp[dim]
+        for i, node in enumerate(sub_node):
+            try:
+                node.cover[qid_value]
+                sub_groups[i].append(temp)
+                break
+            except:
+                continue
+        else:
+            print "Generalization hierarchy error!"
+    nonempty_group = [i for i, t in enumerate(sub_groups) if len(t) > 0]
+    if len(nonempty_group) == 1:
+        index = nonempty_group[0]
+        # update middle
+        pmiddle[dim] = sub_node[index].value
+        pwidth[dim] = len(sub_node[index])
+        return []
+    for i, p in enumerate(sub_groups):
+        if len(p) == 0:
+            continue
+        wtemp = pwidth[:]
+        mtemp = pmiddle[:]
+        wtemp[dim] = len(sub_node[i])
+        mtemp[dim] = sub_node[i].value
+        sub_partitions.append(Partition(p, wtemp, mtemp))
+    return sub_partitions
+
+
 def split_partition(partition, dim):
     """
     split partition and distribute records to different sub-partitions
     """
-    sub_partitions = []
     pwidth = partition.width
     pmiddle = partition.middle
     if IS_CAT[dim] is False:
-        # numeric attributes
-        (splitVal, split_index) = find_median(partition, dim)
-        if splitVal == '':
-            print "Error: splitVal= null"
-            pdb.set_trace()
-        middle_pos = ATT_TREES[dim].dict[splitVal]
-        lmiddle = pmiddle[:]
-        rmiddle = pmiddle[:]
-        lmiddle[dim], rmiddle[dim] = split_numeric_value(pmiddle[dim], splitVal)
-        lhs = []
-        rhs = []
-        for temp in partition.member:
-            pos = ATT_TREES[dim].dict[temp[dim]]
-            if pos <= middle_pos:
-                # lhs = [low, means]
-                lhs.append(temp)
-            else:
-                # rhs = (mean, high]
-                rhs.append(temp)
-        lwidth = pwidth[:]
-        rwidth = pwidth[:]
-        lwidth[dim] = (pwidth[dim][0], split_index)
-        rwidth[dim] = (split_index + 1, pwidth[dim][1])
-        sub_partitions.append(Partition(lhs, lwidth, lmiddle))
-        sub_partitions.append(Partition(rhs, rwidth, rmiddle))
+        return split_numeric(partition, dim, pwidth, pmiddle)
     else:
-        # categoric attributes
-        if partition.middle[dim] != '*':
-            splitVal = ATT_TREES[dim][partition.middle[dim]]
-        else:
-            splitVal = ATT_TREES[dim]['*']
-        if len(splitVal.child) == 0:
-            # all values are the same
-            # try to binary split
-            half_size = len(partition) / 2
-            lhs = partition.member[:half_size]
-            rhs = partition.member[half_size:]
-            sub_partitions.append(Partition(lhs, pwidth, pmiddle))
-            sub_partitions.append(Partition(rhs, pwidth, pmiddle))
-            return []
-        sub_node = [t for t in splitVal.child]
-        sub_groups = []
-        for i in range(len(sub_node)):
-            sub_groups.append([])
-        if len(sub_groups) == 0:
-            # split is not necessary
-            return []
-        for temp in partition.member:
-            qid_value = temp[dim]
-            for i, node in enumerate(sub_node):
-                try:
-                    node.cover[qid_value]
-                    sub_groups[i].append(temp)
-                    break
-                except:
-                    continue
-            else:
-                print "Generalization hierarchy error!"
-        for i, p in enumerate(sub_groups):
-            if len(p) == 0:
-                continue
-            wtemp = pwidth[:]
-            mtemp = pmiddle[:]
-            wtemp[dim] = len(sub_node[i])
-            mtemp[dim] = sub_node[i].value
-            sub_partitions.append(Partition(p, wtemp, mtemp))
-    return sub_partitions
+        return split_categoric(partition, dim, pwidth, pmiddle)
 
 
 def anonymize(partition):
@@ -299,21 +322,24 @@ def anonymize(partition):
     # leftover.allow[dim] = 0
     # balance sub-partitions
     sub_partitions = split_partition(partition, dim)
-    balance_partition(sub_partitions, leftover)
-    if len(sub_partitions) <= 1:
+    if len(sub_partitions) == 0:
         partition.allow[dim] = 0
-        sub_partitions = [partition]
-    # recursively partition
-    for sub_p in sub_partitions:
-        anonymize(sub_p)
+        anonymize(partition)
+    else:
+        balance_partition(sub_partitions, leftover)
+        if len(sub_partitions) == 1:
+            partition.allow[dim] = 0
+            anonymize(partition)
+        else:
+            # recursively partition
+            for sub_p in sub_partitions:
+                anonymize(sub_p)
 
 
 def check_splitable(partition):
     """
     Check if the partition can be further splited while satisfying k-anonymity.
     """
-    if len(partition) < 2 * GL_K:
-        return False
     temp = sum(partition.allow)
     if temp == 0:
         return False
