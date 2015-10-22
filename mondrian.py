@@ -181,146 +181,186 @@ def split_numeric_value(numeric_value, splitVal, nextVal):
         return lvalue, rvalue
 
 
+def split_missing(partition, dim, pwidth, pmiddle):
+    """
+    """
+    nomissing = []
+    missing = []
+    for record in partition.member:
+        if record[dim] == '?' or record[dim] == '*':
+            missing.append(record)
+        else:
+            nomissing.append(record)
+    if len(missing) == 0:
+        return []
+    else:
+        p_nomissing = Partition(nomissing, pwidth[:], pmiddle[:])
+        mhs = missing
+        mhs_middle = pmiddle[:]
+        mhs_middle[dim] = '*'
+        mhs_width = pwidth[:]
+        mhs_width[dim] = (0, 0)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs.is_missing[dim] = True
+        return [p_nomissing, p_mhs]
+
+
+def split_numeric(partition, dim, pwidth, pmiddle):
+    sub_partitions = []
+    # numeric attributes
+    (splitVal, nextVal, low, high) = find_median(partition, dim)
+    if low == '':
+        pmiddle[dim] = '*'
+        pwidth[dim] = (0, 0)
+        partition.is_missing[dim] = True
+    else:
+        p_low = ATT_TREES[dim].dict[low]
+        p_high = ATT_TREES[dim].dict[high]
+        # update middle
+        if low == high:
+            pmiddle[dim] = low
+        else:
+            pmiddle[dim] = low + ',' + high
+        pwidth[dim] = (p_low, p_high)
+    if splitVal == '' or splitVal == nextVal:
+        return split_missing(partition, dim, pwidth, pmiddle)
+    middle_pos = ATT_TREES[dim].dict[splitVal]
+    lhs_middle = pmiddle[:]
+    rhs_middle = pmiddle[:]
+    lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
+                                                           splitVal, nextVal)
+    lhs = []
+    rhs = []
+    mhs = []
+    for record in partition.member:
+        if record[dim] == '?' or record[dim] == '*':
+            mhs.append(record)
+            continue
+        pos = ATT_TREES[dim].dict[record[dim]]
+        if pos <= middle_pos:
+            # lhs = [low, means]
+            lhs.append(record)
+        else:
+            # rhs = (means, high]
+            rhs.append(record)
+    lhs_width = pwidth[:]
+    rhs_width = pwidth[:]
+    lhs_width[dim] = (pwidth[dim][0], middle_pos)
+    rhs_width[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
+    sub_partitions.append(Partition(lhs, lhs_width, lhs_middle))
+    sub_partitions.append(Partition(rhs, rhs_width, rhs_middle))
+    if len(mhs) > 0:
+        mhs_middle = pmiddle[:]
+        mhs_middle[dim] = '*'
+        mhs_width = pwidth[:]
+        mhs_width[dim] = (0, 0)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs.is_missing[dim] = True
+        sub_partitions.append(p_mhs)
+    return sub_partitions
+
+
+def split_categoric(partition, dim, pwidth, pmiddle):
+    sub_partitions = []
+    mhs = []
+    # normal attributes
+    split_node = ATT_TREES[dim][pmiddle[dim]]
+    if len(split_node.child) == 0:
+        return split_missing(partition, dim, pwidth, pmiddle)
+    sub_node = [t for t in split_node.child]
+    sub_groups = []
+    for i in range(len(sub_node)):
+        sub_groups.append([])
+    for record in partition.member:
+        qid_value = record[dim]
+        if qid_value == '?' or qid_value == '*':
+            mhs.append(record)
+            continue
+        for i, node in enumerate(sub_node):
+            try:
+                node.cover[qid_value]
+                sub_groups[i].append(record)
+                break
+            except KeyError:
+                continue
+        else:
+            print "Generalization hierarchy error!"
+            pdb.set_trace()
+    flag = True
+    for index, sub_group in enumerate(sub_groups):
+        if len(sub_group) == 0:
+            continue
+        if len(sub_group) < GL_K:
+            flag = False
+            break
+    if len(mhs) > 0 and len(mhs) < GL_K:
+        flag = False
+    if flag:
+        for i, sub_group in enumerate(sub_groups):
+            if len(sub_group) == 0:
+                continue
+            wtemp = pwidth[:]
+            mtemp = pmiddle[:]
+            wtemp[dim] = len(sub_node[i])
+            mtemp[dim] = sub_node[i].value
+            sub_partitions.append(Partition(sub_group, wtemp, mtemp))
+        if len(mhs) > 0:
+            mhs_width = pwidth[:]
+            mhs_middle = pmiddle[:]
+            mhs_middle[dim] = '*'
+            mhs_width[dim] = QI_RANGE[dim]
+            p_mhs = Partition(mhs, mhs_width, mhs_middle)
+            p_mhs.is_missing[dim] = True
+            sub_partitions.append(p_mhs)
+    return sub_partitions
+
+
+def split_partition(partition, dim):
+    """
+    split partition and distribute records to different sub-partitions
+    """
+    pwidth = partition.width
+    pmiddle = partition.middle
+    if IS_CAT[dim] is False:
+        return split_numeric(partition, dim, pwidth, pmiddle)
+    else:
+        return split_categoric(partition, dim, pwidth, pmiddle)
+
+
 def anonymize(partition):
     """
     Main procedure of mondrian.
     recursively partition groups until not allowable.
     """
-    allow_count = sum(partition.allow)
-    for index in range(allow_count):
-        # pdb.set_trace()
-        dim = choose_dimension(partition)
-        if dim == -1:
-            print "Error: dim=-1"
-            pdb.set_trace()
-        if partition.is_missing[dim]:
-            partition.allow[dim] = 0
-            continue
-        pwidth = partition.width
-        pmiddle = partition.middle
-        if IS_CAT[dim] is False:
-            # numeric attributes
-            (splitVal, nextVal, low, high) = find_median(partition, dim)
-            if splitVal == '':
-                if low == '':
-                    pmiddle[dim] = '*'
-                    pwidth = (0, 0)
-                    partition.is_missing[dim] = True
-                else:
-                    p_low = ATT_TREES[dim].dict[low]
-                    p_high = ATT_TREES[dim].dict[high]
-                    # update middle
-                    if low == high:
-                        pmiddle[dim] = low
-                    else:
-                        pmiddle[dim] = low + ',' + high
-                    pwidth[dim] = (p_low, p_high)
-                partition.allow[dim] = 0
-                continue
-            middle_pos = ATT_TREES[dim].dict[splitVal]
-            lhs_middle = pmiddle[:]
-            rhs_middle = pmiddle[:]
-            lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
-                                                                   splitVal, nextVal)
-            lhs_width = pwidth[:]
-            rhs_width = pwidth[:]
-            lhs_width[dim] = (pwidth[dim][0], middle_pos)
-            rhs_width[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
-            lhs = []
-            rhs = []
-            mhs = []
-            for record in partition.member:
-                if record[dim] == '?' or record[dim] == '*':
-                    mhs.append(record)
-                    continue
-                pos = ATT_TREES[dim].dict[record[dim]]
-                if pos <= middle_pos:
-                    # lhs = [low, means]
-                    lhs.append(record)
-                else:
-                    # rhs = (means, high]
-                    rhs.append(record)
-            if len(lhs) > 0 and len(lhs) < GL_K:
-                partition.allow[dim] = 0
-                continue
-            if len(rhs) > 0 and len(rhs) < GL_K:
-                partition.allow[dim] = 0
-                continue
-            if len(mhs) > 0 and len(mhs) < GL_K:
-                partition.allow[dim] = 0
-                continue
-            # anonymize sub-partition
-            if len(lhs) > 0:
-                anonymize(Partition(lhs, lhs_width, lhs_middle))
-            if len(rhs) > 0:
-                anonymize(Partition(rhs, rhs_width, rhs_middle))
-            if len(mhs) > 0:
-                mhs_middle = pmiddle[:]
-                mhs_middle[dim] = '*'
-                mhs_width = pwidth[:]
-                mhs_width[dim] = (0, 0)
-                p_mhs = Partition(mhs, mhs_width, mhs_middle)
-                p_mhs.is_missing[dim] = True
-                anonymize(p_mhs)
-            return
-        else:
-            # pdb.set_trace()
-            mhs = []
-            # normal attributes
-            split_node = ATT_TREES[dim][pmiddle[dim]]
-            if len(split_node.child) == 0:
-                partition.allow[dim] = 0
-                continue
-            sub_node = [t for t in split_node.child]
-            sub_partitions = []
-            for i in range(len(sub_node)):
-                sub_partitions.append([])
-            for record in partition.member:
-                qid_value = record[dim]
-                if qid_value == '?' or qid_value == '*':
-                    mhs.append(record)
-                    continue
-                for i, node in enumerate(sub_node):
-                    try:
-                        node.cover[qid_value]
-                        sub_partitions[i].append(record)
-                        break
-                    except KeyError:
-                        continue
-                else:
-                    print "Generalization hierarchy error!"
-                    pdb.set_trace()
-            flag = True
-            for sub_partition in sub_partitions:
-                if len(sub_partition) == 0:
-                    continue
-                if len(sub_partition) < GL_K:
-                    flag = False
-                    break
-            if len(mhs) > 0 and len(mhs) < GL_K:
-                flag = False
-            if flag:
-                for i, sub_partition in enumerate(sub_partitions):
-                    if len(sub_partition) == 0:
-                        continue
-                    wtemp = pwidth[:]
-                    mtemp = pmiddle[:]
-                    wtemp[dim] = len(sub_node[i])
-                    mtemp[dim] = sub_node[i].value
-                    anonymize(Partition(sub_partition, wtemp, mtemp))
-                if len(mhs) > 0:
-                    mhs_width = pwidth[:]
-                    mhs_middle = pmiddle[:]
-                    mhs_middle[dim] = '*'
-                    mhs_width[dim] = 0
-                    p_mhs = Partition(mhs, mhs_width, mhs_middle)
-                    p_mhs.is_missing[dim] = True
-                    anonymize(p_mhs)
-                return
-            else:
-                partition.allow[dim] = 0
-                continue
-    RESULT.append(partition)
+    if check_splitable(partition) is False:
+        RESULT.append(partition)
+        return
+    # Choose dim
+    dim = choose_dimension(partition)
+    if dim == -1:
+        print "Error: dim=-1"
+        pdb.set_trace()
+    if partition.is_missing[dim]:
+        partition.allow[dim] = 0
+        anonymize(partition)
+        return
+    sub_partitions = split_partition(partition, dim)
+    if len(sub_partitions) == 0:
+        partition.allow[dim] = 0
+        anonymize(partition)
+    else:
+        for sub_p in sub_partitions:
+            anonymize(sub_p)
+
+
+def check_splitable(partition):
+    """
+    Check if the partition can be further splited while satisfying k-anonymity.
+    """
+    temp = sum(partition.allow)
+    if temp == 0:
+        return False
+    return True
 
 
 def init(att_trees, data, k, QI_num=-1):
@@ -396,31 +436,31 @@ def mondrian(att_trees, data, k, QI_num=-1):
     return (result, (ncp, rtime))
 
 
-# def mondrian_split_missing(att_trees, data, k, QI_num=-1):
-#     """
-#     Mondrian for k-anonymity.
-#     This fuction support both numeric values and categoric values.
-#     For numeric values, each iterator is a mean split.
-#     For categoric values, each iterator is a split on GH.
-#     The final result is returned in 2-dimensional list.
-#     """
-#     remain_data = []
-#     missing_data = []
-#     result = []
-#     eval_result = [0, 0]
-#     for record in data:
-#         if '?' in record:
-#             missing_data.append(record)
-#         else:
-#             remain_data.append(record)
-#     missing_result, missing_eval = mondrian(att_trees, missing_data, k, QI_num)
-#     remain_result, remain_eval = mondrian(att_trees, remain_data, k, QI_num)
-#     result = missing_result + remain_result
-#     eval_result[0] = len(missing_data) * missing_eval[0] \
-#         + len(remain_data) * remain_eval[0]
-#     eval_result[0] = eval_result[0] * 1.0 / len(data)
-#     eval_result[1] = missing_eval[1] + remain_eval[1]
-#     return (result, eval_result)
+def mondrian_split_missing(att_trees, data, k, QI_num=-1):
+    """
+    Mondrian for k-anonymity.
+    This fuction support both numeric values and categoric values.
+    For numeric values, each iterator is a mean split.
+    For categoric values, each iterator is a split on GH.
+    The final result is returned in 2-dimensional list.
+    """
+    remain_data = []
+    missing_data = []
+    result = []
+    eval_result = [0, 0]
+    for record in data:
+        if '?' in record:
+            missing_data.append(record)
+        else:
+            remain_data.append(record)
+    missing_result, missing_eval = mondrian(att_trees, missing_data, k, QI_num)
+    remain_result, remain_eval = mondrian(att_trees, remain_data, k, QI_num)
+    result = missing_result + remain_result
+    eval_result[0] = len(missing_data) * missing_eval[0] \
+        + len(remain_data) * remain_eval[0]
+    eval_result[0] = eval_result[0] * 1.0 / len(data)
+    eval_result[1] = missing_eval[1] + remain_eval[1]
+    return (result, eval_result)
 
 
 def mondrian_delete_missing(att_trees, data, k, QI_num=-1):

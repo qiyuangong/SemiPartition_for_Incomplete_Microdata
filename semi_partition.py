@@ -28,8 +28,7 @@ class Partition(object):
     """Class for Group, which is used to keep records
     Store tree node in instances.
     self.member: records in group
-    self.width: width of this partition on each domain. For categoric attribute, it equal
-    the number of leaf node, for numeric attribute, it equal to number range
+    self.width: width of this partition on each domain
     self.middle: save the generalization result of this partition
     self.allow: 0 donate that not allow to split, 1 donate can be split
     """
@@ -38,11 +37,17 @@ class Partition(object):
         """
         initialize with data, width and middle
         """
-        self.member = list(data)
+        self.member = data[:]
         self.width = list(width)
         self.is_missing = [False] * QI_LEN
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
+
+    def add_record(self, record):
+        """
+        add record to partition
+        """
+        self.member.append(record)
 
     def __len__(self):
         """
@@ -56,6 +61,8 @@ def get_normalized_width(partition, index):
     return Normalized width of partition
     similar to NCP
     """
+    if partition.middle[index] == '*':
+        return 1.0
     if IS_CAT[index] is False:
         low = partition.width[index][0]
         high = partition.width[index][1]
@@ -66,21 +73,20 @@ def get_normalized_width(partition, index):
 
 
 def choose_dimension(partition):
-    """
-    chooss dim with largest normlized Width
+    """chooss dim with largest normlized Width
     return dim index.
     """
-    max_width = -1
+    max_witdh = -1
     max_dim = -1
     for i in range(QI_LEN):
         if partition.allow[i] == 0:
             continue
-        normWidth = get_normalized_width(partition, i)
-        if normWidth > max_width:
-            max_width = normWidth
+        norm_width = get_normalized_width(partition, i)
+        if norm_width > max_witdh:
+            max_witdh = norm_width
             max_dim = i
-    if max_width > 1:
-        print "Error: max_width > 1"
+    if max_witdh > 1:
+        print "Error: max_witdh > 1"
         pdb.set_trace()
     if max_dim == -1:
         print "cannot find the max dim"
@@ -89,8 +95,7 @@ def choose_dimension(partition):
 
 
 def frequency_set(partition, dim):
-    """
-    get the frequency_set of partition on dim
+    """get the frequency_set of partition on dim
     return dict{key: str values, values: count}
     """
     frequency = {}
@@ -103,12 +108,12 @@ def frequency_set(partition, dim):
 
 
 def find_median(partition, dim):
-    """
-    find the middle of the partition
+    """find the middle of the partition
     return splitVal
     """
     frequency = frequency_set(partition, dim)
     splitVal = ''
+    nextVal = ''
     value_list = frequency.keys()
     value_list = [t for t in value_list if t is not '?' and t is not '*']
     value_list.sort(cmp=cmp_str)
@@ -121,172 +126,175 @@ def find_median(partition, dim):
             return ('', '', '', '')
     index = 0
     split_index = 0
-    for i, t in enumerate(value_list):
-        index += frequency[t]
+    for i, qid_value in enumerate(value_list):
+        index += frequency[qid_value]
         if index >= middle:
-            splitVal = t
+            splitVal = qid_value
             split_index = i
             break
     else:
         print "Error: cannot find splitVal"
-    return (splitVal, split_index, value_list[0], value_list[-1])
+    try:
+        nextVal = value_list[split_index + 1]
+    except IndexError:
+        nextVal = splitVal
+    return (splitVal, nextVal, value_list[0], value_list[-1])
 
 
-def balance_partition(sub_partitions, leftover):
-    """
-    balance partitions:
-    Step 1: For partitions with less than k records, merge them to leftover partition.
-    Step 2: If leftover partition has less than k records, then move some records
-    from partitions with more than k records.
-    Step 3: After Step 2, if the leftover partition does not satisfy
-    k-anonymity, then merge a partitions with k records to the leftover partition.
-    Final: Backtrace leftover partition to the partent node.
-    """
-    if len(sub_partitions) <= 1:
-        # split failure
-        return
-    extra = 0
-    check_list = []
-    for sub_p in sub_partitions[:]:
-        record_set = sub_p.member
-        if len(record_set) < GL_K:
-            leftover.member.extend(record_set)
-            sub_partitions.remove(sub_p)
-        else:
-            extra += len(record_set) - GL_K
-            check_list.append(sub_p)
-    # there is no record to balance
-    if len(leftover) == 0:
-        return
-    ls = len(leftover)
-    if ls < GL_K:
-        need_for_leftover = GL_K - ls
-        if need_for_leftover > extra:
-            min_p = 0
-            min_size = len(check_list[0])
-            for i, sub_p in enumerate(check_list):
-                if len(sub_p) < min_size:
-                    min_size = len(sub_p)
-                    min_p = i
-            sub_p = sub_partitions.pop(min_p)
-            leftover.member.extend(sub_p.member)
-        else:
-            while need_for_leftover > 0:
-                check_list = [t for t in sub_partitions if len(t) > GL_K]
-                # TODO random pick
-                for sub_p in check_list:
-                    if need_for_leftover > 0:
-                        t = sub_p.member.pop(random.randrange(len(sub_p)))
-                        leftover.member.append(t)
-                        need_for_leftover -= 1
-    sub_partitions.append(leftover)
-
-
-def split_numeric_value(numeric_value, splitVal):
+def split_numeric_value(numeric_value, splitVal, nextVal):
     """
     split numeric value on splitVal
     return sub ranges
     """
-    split_num = numeric_value.split(',')
-    if len(split_num) <= 1:
-        return split_num[0], split_num[0]
+    split_result = numeric_value.split(',')
+    if len(split_result) <= 1:
+        return split_result[0], split_result[0]
     else:
-        low = split_num[0]
-        high = split_num[1]
+        low = split_result[0]
+        high = split_result[1]
         # Fix 2,2 problem
         if low == splitVal:
             lvalue = low
         else:
             lvalue = low + ',' + splitVal
-        if high == splitVal:
+        if high == nextVal:
             rvalue = high
         else:
-            rvalue = splitVal + ',' + high
+            rvalue = nextVal + ',' + high
         return lvalue, rvalue
+
+
+def split_missing(partition, dim, pwidth, pmiddle):
+    """
+    """
+    nomissing = []
+    missing = []
+    for record in partition.member:
+        if record[dim] == '?' or record[dim] == '*':
+            missing.append(record)
+        else:
+            nomissing.append(record)
+    if len(missing) == 0:
+        return []
+    else:
+        p_nomissing = Partition(nomissing, pwidth[:], pmiddle[:])
+        mhs = missing
+        mhs_middle = pmiddle[:]
+        mhs_middle[dim] = '*'
+        mhs_width = pwidth[:]
+        mhs_width[dim] = (0, 0)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs.is_missing[dim] = True
+        return [p_nomissing, p_mhs]
 
 
 def split_numeric(partition, dim, pwidth, pmiddle):
     sub_partitions = []
     # numeric attributes
-    (splitVal, split_index, low, high) = find_median(partition, dim)
-    if splitVal == '':
-        if low == '':
-            pmiddle[dim] = '*'
-            pwidth = (0, 0)
-            partition.is_missing[dim] = True
+    (splitVal, nextVal, low, high) = find_median(partition, dim)
+    if low == '':
+        pmiddle[dim] = '*'
+        pwidth[dim] = (0, 0)
+        partition.is_missing[dim] = True
+    else:
+        p_low = ATT_TREES[dim].dict[low]
+        p_high = ATT_TREES[dim].dict[high]
+        # update middle
+        if low == high:
+            pmiddle[dim] = low
         else:
-            p_low = ATT_TREES[dim].dict[low]
-            p_high = ATT_TREES[dim].dict[high]
-            # update middle
-            if low == high:
-                pmiddle[dim] = low
-            else:
-                pmiddle[dim] = low + ',' + high
-            pwidth[dim] = (p_low, p_high)
-        return []
+            pmiddle[dim] = low + ',' + high
+        pwidth[dim] = (p_low, p_high)
+    if splitVal == '' or splitVal == nextVal:
+        return split_missing(partition, dim, pwidth, pmiddle)
     middle_pos = ATT_TREES[dim].dict[splitVal]
-    lmiddle = pmiddle[:]
-    rmiddle = pmiddle[:]
-    lmiddle[dim], rmiddle[dim] = split_numeric_value(pmiddle[dim], splitVal)
+    lhs_middle = pmiddle[:]
+    rhs_middle = pmiddle[:]
+    lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
+                                                           splitVal, nextVal)
     lhs = []
     rhs = []
-    for temp in partition.member:
-        pos = ATT_TREES[dim].dict[temp[dim]]
+    mhs = []
+    for record in partition.member:
+        if record[dim] == '?' or record[dim] == '*':
+            mhs.append(record)
+            continue
+        pos = ATT_TREES[dim].dict[record[dim]]
         if pos <= middle_pos:
             # lhs = [low, means]
-            lhs.append(temp)
+            lhs.append(record)
         else:
-            # rhs = (mean, high]
-            rhs.append(temp)
-    lwidth = pwidth[:]
-    rwidth = pwidth[:]
-    lwidth[dim] = (pwidth[dim][0], split_index)
-    rwidth[dim] = (split_index + 1, pwidth[dim][1])
-    sub_partitions.append(Partition(lhs, lwidth, lmiddle))
-    sub_partitions.append(Partition(rhs, rwidth, rmiddle))
+            # rhs = (means, high]
+            rhs.append(record)
+    lhs_width = pwidth[:]
+    rhs_width = pwidth[:]
+    lhs_width[dim] = (pwidth[dim][0], middle_pos)
+    rhs_width[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
+    sub_partitions.append(Partition(lhs, lhs_width, lhs_middle))
+    sub_partitions.append(Partition(rhs, rhs_width, rhs_middle))
+    if len(mhs) > 0:
+        mhs_middle = pmiddle[:]
+        mhs_middle[dim] = '*'
+        mhs_width = pwidth[:]
+        mhs_width[dim] = (0, 0)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs.is_missing[dim] = True
+        sub_partitions.append(p_mhs)
     return sub_partitions
 
 
 def split_categoric(partition, dim, pwidth, pmiddle):
     sub_partitions = []
-    # categoric attributes
-    if partition.middle[dim] != '*':
-        splitVal = ATT_TREES[dim][partition.middle[dim]]
-    else:
-        splitVal = ATT_TREES[dim]['*']
-    sub_node = [t for t in splitVal.child]
+    mhs = []
+    # normal attributes
+    split_node = ATT_TREES[dim][pmiddle[dim]]
+    if len(split_node.child) == 0:
+        return split_missing(partition, dim, pwidth, pmiddle)
+    sub_node = [t for t in split_node.child]
     sub_groups = []
     for i in range(len(sub_node)):
         sub_groups.append([])
-    if len(sub_groups) == 0:
-        # split is not necessary
-        return []
-    for temp in partition.member:
-        qid_value = temp[dim]
+    for record in partition.member:
+        qid_value = record[dim]
+        if qid_value == '?' or qid_value == '*':
+            mhs.append(record)
+            continue
         for i, node in enumerate(sub_node):
             try:
                 node.cover[qid_value]
-                sub_groups[i].append(temp)
+                sub_groups[i].append(record)
                 break
-            except:
+            except KeyError:
                 continue
         else:
             print "Generalization hierarchy error!"
-    nonempty_group = [i for i, t in enumerate(sub_groups) if len(t) > 0]
-    if len(nonempty_group) == 1:
-        index = nonempty_group[0]
-        # update middle
-        pmiddle[dim] = sub_node[index].value
-        pwidth[dim] = len(sub_node[index])
-        return []
-    for i, p in enumerate(sub_groups):
-        if len(p) == 0:
+            pdb.set_trace()
+    flag = True
+    for index, sub_group in enumerate(sub_groups):
+        if len(sub_group) == 0:
             continue
-        wtemp = pwidth[:]
-        mtemp = pmiddle[:]
-        wtemp[dim] = len(sub_node[i])
-        mtemp[dim] = sub_node[i].value
-        sub_partitions.append(Partition(p, wtemp, mtemp))
+        if len(sub_group) < GL_K:
+            flag = False
+            break
+    if len(mhs) > 0 and len(mhs) < GL_K:
+        flag = False
+    if flag:
+        for i, sub_group in enumerate(sub_groups):
+            if len(sub_group) == 0:
+                continue
+            wtemp = pwidth[:]
+            mtemp = pmiddle[:]
+            wtemp[dim] = len(sub_node[i])
+            mtemp[dim] = sub_node[i].value
+            sub_partitions.append(Partition(sub_group, wtemp, mtemp))
+        if len(mhs) > 0:
+            mhs_width = pwidth[:]
+            mhs_middle = pmiddle[:]
+            mhs_middle[dim] = '*'
+            mhs_width[dim] = QI_RANGE[dim]
+            p_mhs = Partition(mhs, mhs_width, mhs_middle)
+            p_mhs.is_missing[dim] = True
+            sub_partitions.append(p_mhs)
     return sub_partitions
 
 
@@ -302,38 +310,121 @@ def split_partition(partition, dim):
         return split_categoric(partition, dim, pwidth, pmiddle)
 
 
+def balance_partition(sub_partitions, partition, dim):
+    """
+    balance partitions:
+    Step 1: For partitions with less than k records, merge them to leftover partition.
+    Step 2: If leftover partition has less than k records, then move some records
+    from partitions with more than k records.
+    Step 3: After Step 2, if the leftover partition does not satisfy
+    k-anonymity, then merge a partitions with k records to the leftover partition.
+    Final: Backtrace leftover partition to the partent node.
+    """
+    if len(sub_partitions) <= 1:
+        return
+    # leftover contains all records from subPartitons smaller than k
+    # So the GH of leftover is the same as Parent.
+    leftover = Partition([], partition.width, partition.middle)
+    mhs = None
+    extra = 0
+    check_list = []
+    for sub_p in sub_partitions[:]:
+        record_set = sub_p.member
+        if sub_p.is_missing[dim]:
+            mhs = sub_p
+            continue
+        if len(record_set) < GL_K:
+            leftover.member.extend(record_set)
+            sub_partitions.remove(sub_p)
+        else:
+            extra += len(record_set) - GL_K
+            check_list.append(sub_p)
+    # there is no record to balance
+    if len(leftover) > 0:
+        ls = len(leftover)
+        if ls < GL_K:
+            need_for_leftover = GL_K - ls
+            if need_for_leftover > extra:
+                min_p = 0
+                min_size = len(check_list[0])
+                for i, sub_p in enumerate(check_list):
+                    if len(sub_p) < min_size:
+                        min_size = len(sub_p)
+                        min_p = i
+                sub_p = sub_partitions.pop(min_p)
+                leftover.member.extend(sub_p.member)
+            else:
+                while need_for_leftover > 0:
+                    check_list = [t for t in sub_partitions if len(t) > GL_K]
+                    for sub_p in check_list:
+                        if need_for_leftover > 0:
+                            t = sub_p.member.pop(random.randrange(len(sub_p)))
+                            leftover.member.append(t)
+                            need_for_leftover -= 1
+        sub_partitions.append(leftover)
+    if mhs is None:
+        return
+    if len(mhs) > 0:
+        ls = len(mhs)
+        if ls < GL_K:
+            need_for_missing = GL_K - ls
+            if need_for_missing > extra:
+                min_p = 0
+                min_size = len(check_list[0])
+                for i, sub_p in enumerate(check_list):
+                    if len(sub_p) < min_size:
+                        min_size = len(sub_p)
+                        min_p = i
+                sub_p = sub_partitions.pop(min_p)
+                mhs.member.extend(sub_p.member)
+            else:
+                while need_for_missing > 0:
+                    check_list = [t for t in sub_partitions if len(t) > GL_K]
+                    for sub_p in check_list:
+                        if need_for_missing > 0:
+                            t = sub_p.member.pop(random.randrange(len(sub_p)))
+                            mhs.member.append(t)
+                            need_for_missing -= 1
+        sub_partitions.append(mhs)
+
+
 def anonymize(partition):
     """
     Main procedure of Half_Partition.
     recursively partition groups until not allowable.
     """
-    global RESULT
     if check_splitable(partition) is False:
         RESULT.append(partition)
         return
-    # leftover contains all records from subPartitons smaller than k
-    # So the GH of leftover is the same as Parent.
-    leftover = Partition([], partition.width, partition.middle)
     # Choose dim
     dim = choose_dimension(partition)
     if dim == -1:
         print "Error: dim=-1"
         pdb.set_trace()
-    # leftover.allow[dim] = 0
     # balance sub-partitions
     sub_partitions = split_partition(partition, dim)
     if len(sub_partitions) == 0:
         partition.allow[dim] = 0
         anonymize(partition)
     else:
-        balance_partition(sub_partitions, leftover)
-        if len(sub_partitions) == 1:
-            partition.allow[dim] = 0
-            anonymize(partition)
-        else:
-            # recursively partition
-            for sub_p in sub_partitions:
-                anonymize(sub_p)
+        raw_ls = len(sub_partitions)
+        flag = False
+        if sub_partitions[-1].is_missing[dim]:
+            flag = True
+            raw_ls -= 1
+        if raw_ls > 1:
+            balance_partition(sub_partitions, partition, dim)
+            end_ls = len(sub_partitions)
+            if flag:
+                end_ls -= 1
+                anonymize(sub_partitions[-1])
+            if end_ls == 1:
+                partition.allow[dim] == 0
+                anonymize(partition)
+                return
+        # recursively partition
+        for sub_p in sub_partitions:
+            anonymize(sub_p)
 
 
 def check_splitable(partition):
