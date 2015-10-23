@@ -33,13 +33,16 @@ class Partition(object):
     self.allow: 0 donate that not allow to split, 1 donate can be split
     """
 
-    def __init__(self, data, width, middle):
+    def __init__(self, data, width, middle, is_missing=None):
         """
         initialize with data, width and middle
         """
         self.member = data[:]
         self.width = list(width)
-        self.is_missing = [False] * QI_LEN
+        if is_missing is None:
+            self.is_missing = [False] * QI_LEN
+        else:
+            self.is_missing = list(is_missing)
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 
@@ -186,7 +189,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
         mhs_middle[dim] = '*'
         mhs_width = pwidth[:]
         mhs_width[dim] = (0, 0)
-        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
         p_mhs.is_missing[dim] = True
         sub_partitions.append(p_mhs)
         return sub_partitions
@@ -254,9 +257,10 @@ def split_categorical(partition, dim, pwidth, pmiddle):
     # normal attributes
     split_node = ATT_TREES[dim][pmiddle[dim]]
     # print "Partition", len(partition)
-    # print "allow", partition.allow
-    # print "is_missing", partition.is_missing
-    # pdb.set_trace()
+    # if len(partition) == 635:
+    #     print "allow", partition.allow
+    #     print "is_missing", partition.is_missing
+    #     pdb.set_trace()
     if len(split_node.child) == 0:
         return split_missing(partition, dim, pwidth, pmiddle)
     sub_node = [t for t in split_node.child]
@@ -324,13 +328,15 @@ def balance_partition(sub_partitions, partition, dim):
     # leftover contains all records from subPartitons smaller than k
     # So the GH of leftover is the same as Parent.
     leftover = Partition([], partition.width, partition.middle)
-    mhs = None
+    mhs = Partition([], partition.width, partition.middle, partition.is_missing)
+    mhs.middle[dim] = '*'
+    mhs.is_missing[dim] = True
     extra = 0
     check_list = []
     for sub_p in sub_partitions[:]:
         record_set = sub_p.member
         if sub_p.is_missing[dim]:
-            mhs = sub_p
+            mhs.member.extend(record_set)
             sub_partitions.remove(sub_p)
             continue
         if len(record_set) < GL_K:
@@ -345,8 +351,8 @@ def balance_partition(sub_partitions, partition, dim):
         if ls < GL_K:
             need_for_leftover = GL_K - ls
             if need_for_leftover > extra:
-                min_p = 0
                 if len(check_list) > 0:
+                    min_p = 0
                     min_size = len(check_list[0])
                     for i, sub_p in enumerate(check_list):
                         if len(sub_p) < min_size:
@@ -363,8 +369,6 @@ def balance_partition(sub_partitions, partition, dim):
                             leftover.member.append(t)
                             need_for_leftover -= 1
         sub_partitions.append(leftover)
-    if mhs is None:
-        return
     if len(mhs) > 0:
         ls = len(mhs)
         if ls < GL_K:
@@ -376,8 +380,8 @@ def balance_partition(sub_partitions, partition, dim):
                     extra += len(sub_p) - GL_K
                     check_list.append(sub_p)
             if need_for_missing > extra:
-                min_p = 0
                 if len(check_list) > 0:
+                    min_p = 0
                     min_size = len(check_list[0])
                     for i, sub_p in enumerate(check_list):
                         if len(sub_p) < min_size:
@@ -426,14 +430,20 @@ def anonymize(partition):
         if sub_partitions[-1].is_missing[dim]:
             flag = True
             raw_ls -= 1
-        if raw_ls > 1:
+        if raw_ls == 0:
+            partition.is_missing[dim] = True
+            partition.middle[dim] = '*'
+            partition.allow[dim] = 0
+            anonymize(partition)
+            return
+        elif raw_ls > 1:
             balance_partition(sub_partitions, partition, dim)
             end_ls = len(sub_partitions)
             if flag:
                 end_ls -= 1
             if end_ls == 1:
-                partition.allow[dim] = 0
-                anonymize(partition)
+                sub_partitions[0].allow[dim] = 0
+                anonymize(sub_partitions[0])
                 if flag:
                     anonymize(sub_partitions[-1])
                 return
@@ -508,7 +518,7 @@ def semi_partition(att_trees, data, K, QI_num=-1):
         temp = partition.middle
         for i in range(len(partition)):
             # TODO Fix 6,6 bug
-            result.append(temp[:])
+            result.append(temp[:] + [partition.member[i][-1]])
         r_ncp *= len(partition)
         ncp += r_ncp
     # covert to NCP percentage
