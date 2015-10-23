@@ -158,7 +158,7 @@ def find_median(partition, dim):
     return (splitVal, nextVal, value_list[0], value_list[-1])
 
 
-def split_numeric_value(numeric_value, splitVal, nextVal):
+def split_numerical_value(numeric_value, splitVal, nextVal):
     """
     split numeric value on splitVal
     return sub ranges
@@ -205,7 +205,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
         return [p_nomissing, p_mhs]
 
 
-def split_numeric(partition, dim, pwidth, pmiddle):
+def split_numerical(partition, dim, pwidth, pmiddle):
     sub_partitions = []
     # numeric attributes
     (splitVal, nextVal, low, high) = find_median(partition, dim)
@@ -227,7 +227,7 @@ def split_numeric(partition, dim, pwidth, pmiddle):
     middle_pos = ATT_TREES[dim].dict[splitVal]
     lhs_middle = pmiddle[:]
     rhs_middle = pmiddle[:]
-    lhs_middle[dim], rhs_middle[dim] = split_numeric_value(pmiddle[dim],
+    lhs_middle[dim], rhs_middle[dim] = split_numerical_value(pmiddle[dim],
                                                            splitVal, nextVal)
     lhs = []
     rhs = []
@@ -260,7 +260,7 @@ def split_numeric(partition, dim, pwidth, pmiddle):
     return sub_partitions
 
 
-def split_categoric(partition, dim, pwidth, pmiddle):
+def split_categorical(partition, dim, pwidth, pmiddle):
     sub_partitions = []
     mhs = []
     # normal attributes
@@ -322,9 +322,9 @@ def split_partition(partition, dim):
     pwidth = partition.width
     pmiddle = partition.middle
     if IS_CAT[dim] is False:
-        return split_numeric(partition, dim, pwidth, pmiddle)
+        return split_numerical(partition, dim, pwidth, pmiddle)
     else:
-        return split_categoric(partition, dim, pwidth, pmiddle)
+        return split_categorical(partition, dim, pwidth, pmiddle)
 
 
 def anonymize(partition):

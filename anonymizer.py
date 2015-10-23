@@ -11,6 +11,7 @@ from mondrian import mondrian
 from utils.read_data import read_data
 from utils.read_data import read_tree
 import sys, copy, random
+# sys.setrecursionlimit(500000)
 
 
 def get_result_one(att_trees, data, K=10):
