@@ -410,14 +410,19 @@ def mondrian(att_trees, data, k, QI_num=-1):
     rtime = float(time.time() - start_time)
     ncp = 0.0
     for partition in RESULT:
-        rncp = 0.0
-        for index in range(QI_LEN):
-            rncp += get_normalized_width(partition, index)
-        for index in range(len(partition)):
-            gen_result = partition.middle + [partition.member[index][-1]]
-            result.append(gen_result[:])
-        rncp *= len(partition)
-        ncp += rncp
+        p_ncp = []
+        r_ncp = 0.0
+        for i in range(QI_LEN):
+            p_ncp.append(get_normalized_width(partition, i))
+        temp = partition.middle
+        for record in partition.member:
+            result.append(temp[:] + [record[-1]])
+            for i in range(QI_LEN):
+                if record[i] == '?' or record[i] == '*':
+                    continue
+                else:
+                    r_ncp += p_ncp[i]
+        ncp += r_ncp
     ncp /= QI_LEN
     ncp /= len(data)
     ncp *= 100

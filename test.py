@@ -37,125 +37,125 @@ def init():
 
 
 class functionTest(unittest.TestCase):
-    # def test1_mondrian(self):
-    #     init()
-    #     data = [['6', '1', 'haha'],
-    #             ['6', '1', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '1', 'hha'],
-    #             ['4', '2', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = mondrian(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 200.0 / 72) < 0.05)
+    def test1_mondrian(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '2', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = mondrian(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 200.0 / 72) < 0.05)
 
-    # def test2_mondrian(self):
-    #     init()
-    #     data = [['6', '1', 'haha'],
-    #             ['6', '1', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '1', 'hha'],
-    #             ['4', '1', 'hha'],
-    #             ['1', '1', 'hha'],
-    #             ['2', '1', 'hha']]
-    #     result, eval_r = mondrian(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 100.0 / 8) < 0.05)
+    def test2_mondrian(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '1', 'hha'],
+                ['1', '1', 'hha'],
+                ['2', '1', 'hha']]
+        result, eval_r = mondrian(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 100.0 / 8) < 0.05)
 
-    # def test_mondrian_incompelte(self):
-    #     init()
-    #     data = [['6', '?', 'haha'],
-    #             ['6', '?', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = mondrian(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 3800.0 / 144) < 0.05)
+    def test_mondrian_incompelte(self):
+        init()
+        data = [['6', '?', 'haha'],
+                ['6', '?', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '?', 'hha'],
+                ['4', '?', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = mondrian(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
 
-    # def test_mondrian_delete_incompelte(self):
-    #     init()
-    #     data = [['6', '?', 'haha'],
-    #             ['6', '?', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = mondrian_delete_missing(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 51.38) < 0.05)
+    def test_mondrian_delete_incompelte(self):
+        init()
+        data = [['6', '?', 'haha'],
+                ['6', '?', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '?', 'hha'],
+                ['4', '?', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = mondrian_delete_missing(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 51.38) < 0.05)
 
-    # def test_mondrian_split_incompelte(self):
-    #     init()
-    #     data = [['6', '?', 'haha'],
-    #             ['6', '?', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = mondrian_split_missing(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 3800.0 / 144) < 0.05)
+    def test_mondrian_split_incompelte(self):
+        init()
+        data = [['6', '?', 'haha'],
+                ['6', '?', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '?', 'hha'],
+                ['4', '?', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = mondrian_split_missing(ATT_TREE, data, 2)
+        print result
+        print eval_r
+        self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
 
-    # def test_semi_partition(self):
-    #     init()
-    #     data = [['6', '1', 'haha'],
-    #             ['6', '1', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '1', 'hha'],
-    #             ['4', '2', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = semi_partition(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 200.0 / 72) < 0.05)
+    def test_semi_partition(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '2', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = semi_partition(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 200.0 / 72) < 0.05)
 
-    # def test_semi_partition_balance(self):
-    #     init()
-    #     data = [['6', '1', 'haha'],
-    #             ['6', '1', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '1', 'hha'],
-    #             ['4', '1', 'hha'],
-    #             ['1', '1', 'hha'],
-    #             ['2', '1', 'hha']]
-    #     result, eval_r = semi_partition(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 100.0 / 16) < 0.05)
+    def test_semi_partition_balance(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '1', 'hha'],
+                ['1', '1', 'hha'],
+                ['2', '1', 'hha']]
+        result, eval_r = semi_partition(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 100.0 / 16) < 0.05)
 
-    # def test1_semi_partition_incompelte(self):
-    #     init()
-    #     data = [['6', '?', 'haha'],
-    #             ['6', '?', 'test'],
-    #             ['8', '2', 'haha'],
-    #             ['8', '2', 'test'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '?', 'hha'],
-    #             ['4', '3', 'hha'],
-    #             ['4', '4', 'hha']]
-    #     result, eval_r = semi_partition(ATT_TREE, data, 2)
-    #     # print result
-    #     # print eval_r
-    #     self.assertTrue(abs(eval_r[0] - 3800.0 / 144) < 0.05)
+    def test1_semi_partition_incompelte(self):
+        init()
+        data = [['6', '?', 'haha'],
+                ['6', '?', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '?', 'hha'],
+                ['4', '?', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = semi_partition(ATT_TREE, data, 2)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
 
     def test2_semi_partition_incompelte(self):
         init()
@@ -168,9 +168,12 @@ class functionTest(unittest.TestCase):
                 ['4', '1', 'hha'],
                 ['4', '4', 'hha']]
         result, eval_r = semi_partition(ATT_TREE, data, 2)
-        print result
-        print eval_r
-        self.assertTrue(abs(eval_r[0] - 3800.0 / 144) < 0.05)
+        # print result
+        # print eval_r
+        self.assertTrue(abs(eval_r[0] - 1100.0 / 144) < 0.05 or
+                        abs(eval_r[0] - 1300.0 / 144) < 0.05 or
+                        abs(eval_r[0] - 1300.0 / 144) < 0.05 or
+                        abs(eval_r[0] - 1500.0 / 144) < 0.05)
 
 
 if __name__ == '__main__':

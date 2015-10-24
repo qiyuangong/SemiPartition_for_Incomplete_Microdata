@@ -87,6 +87,8 @@ def get_result_qi(att_trees, data, K=10):
 
 if __name__ == '__main__':
     FLAG = ''
+    # redirout = open('log.txt', 'w')
+    # sys.stdout = redirout
     LEN_ARGV = len(sys.argv)
     try:
         FLAG = sys.argv[2]
@@ -117,3 +119,4 @@ if __name__ == '__main__':
                 one: run only once"
     # anonymized dataset is stored in result
     print "Finish Semi_Partition!!"
+    # redirout.close()

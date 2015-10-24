@@ -182,7 +182,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
         return []
     else:
         if len(nomissing) > 0:
-            p_nomissing = Partition(nomissing, pwidth[:], pmiddle[:])
+            p_nomissing = Partition(nomissing, pwidth, pmiddle)
             sub_partitions.append(p_nomissing)
         mhs = missing
         mhs_middle = pmiddle[:]
@@ -257,7 +257,7 @@ def split_categorical(partition, dim, pwidth, pmiddle):
     # normal attributes
     split_node = ATT_TREES[dim][pmiddle[dim]]
     # print "Partition", len(partition)
-    # if len(partition) == 635:
+    # if len(partition) == 15:
     #     print "allow", partition.allow
     #     print "is_missing", partition.is_missing
     #     pdb.set_trace()
@@ -307,6 +307,10 @@ def split_partition(partition, dim):
     """
     pwidth = partition.width
     pmiddle = partition.middle
+    # print "Partition", len(partition)
+    # print "allow", partition.allow
+    # print "is_missing", partition.is_missing
+    # pdb.set_trace()
     if IS_CAT[dim] is False:
         return split_numerical(partition, dim, pwidth, pmiddle)
     else:
@@ -436,16 +440,22 @@ def anonymize(partition):
             partition.allow[dim] = 0
             anonymize(partition)
             return
-        elif raw_ls > 1:
+        elif raw_ls == 1 and flag is False:
+            anonymize(sub_partitions[0])
+            return
+        else:
             balance_partition(sub_partitions, partition, dim)
             end_ls = len(sub_partitions)
             if flag:
                 end_ls -= 1
             if end_ls == 1:
-                sub_partitions[0].allow[dim] = 0
-                anonymize(sub_partitions[0])
                 if flag:
+                    sub_partitions[0].allow[dim] = 0
+                    anonymize(sub_partitions[0])
                     anonymize(sub_partitions[-1])
+                else:
+                    partition.allow[dim] = 0
+                    anonymize(partition)
                 return
             elif end_ls == 0:
                 anonymize(sub_partitions[-1])
@@ -512,14 +522,18 @@ def semi_partition(att_trees, data, K, QI_num=-1):
     rtime = float(time.time() - start_time)
     ncp = 0.0
     for partition in RESULT:
+        p_ncp = []
         r_ncp = 0.0
         for i in range(QI_LEN):
-            r_ncp += get_normalized_width(partition, i)
+            p_ncp.append(get_normalized_width(partition, i))
         temp = partition.middle
-        for i in range(len(partition)):
-            # TODO Fix 6,6 bug
-            result.append(temp[:] + [partition.member[i][-1]])
-        r_ncp *= len(partition)
+        for record in partition.member:
+            result.append(temp[:] + [record[-1]])
+            for i in range(QI_LEN):
+                if record[i] == '?' or record[i] == '*':
+                    continue
+                else:
+                    r_ncp += p_ncp[i]
         ncp += r_ncp
     # covert to NCP percentage
     ncp /= QI_LEN
