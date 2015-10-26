@@ -245,7 +245,7 @@ def split_numerical(partition, dim, pwidth, pmiddle):
         mhs_middle[dim] = '*'
         mhs_width = pwidth[:]
         mhs_width[dim] = (0, 0)
-        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
         p_mhs.is_missing[dim] = True
         sub_partitions.append(p_mhs)
     return sub_partitions
@@ -295,7 +295,7 @@ def split_categorical(partition, dim, pwidth, pmiddle):
         mhs_middle = pmiddle[:]
         mhs_middle[dim] = '*'
         mhs_width[dim] = QI_RANGE[dim]
-        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
         p_mhs.is_missing[dim] = True
         sub_partitions.append(p_mhs)
     return sub_partitions

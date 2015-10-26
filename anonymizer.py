@@ -17,7 +17,14 @@ import sys, copy, random
 def get_result_one(att_trees, data, K=10):
     "run semi_partition for one time, with k=10"
     print "K=%d" % K
+    print "Mondrian"
+    data_back = copy.deepcopy(data)
+    _, eval_result = mondrian(att_trees, data, K)
+    print "NCP %0.2f" % eval_result[0] + "%"
+    print "Running time %0.2f" % eval_result[1] + "seconds"
+    data = copy.deepcopy(data_back)
     _, eval_result = semi_partition(att_trees, data, K)
+    print "Semi_Partition"
     print "NCP %0.2f" % eval_result[0] + "%"
     print "Running time %0.2f" % eval_result[1] + "seconds"
 
@@ -30,8 +37,14 @@ def get_result_k(att_trees, data):
     for K in range(5, 105, 5):
         print '#' * 30
         print "K=%d" % K
+        print "Mondrian"
+        _, eval_result = mondrian(att_trees, data, K)
+        data = copy.deepcopy(data_back)
+        print "NCP %0.2f" % eval_result[0] + "%"
+        print "Running time %0.2f" % eval_result[1] + "seconds"
         _, eval_result = semi_partition(att_trees, data, K)
         data = copy.deepcopy(data_back)
+        print "Semi_Partition"
         print "NCP %0.2f" % eval_result[0] + "%"
         print "Running time %0.2f" % eval_result[1] + "seconds"
 

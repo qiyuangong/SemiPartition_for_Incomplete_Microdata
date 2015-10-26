@@ -108,8 +108,8 @@ class functionTest(unittest.TestCase):
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
         result, eval_r = mondrian_split_missing(ATT_TREE, data, 2)
-        print result
-        print eval_r
+        # print result
+        # print eval_r
         self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
 
     def test_semi_partition(self):

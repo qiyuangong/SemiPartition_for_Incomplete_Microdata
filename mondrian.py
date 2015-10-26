@@ -50,13 +50,16 @@ class Partition(object):
     self.allow: 0 donate that not allow to split, 1 donate can be split
     """
 
-    def __init__(self, data, width, middle):
+    def __init__(self, data, width, middle, is_missing=None):
         """
         initialize with data, width and middle
         """
         self.member = data[:]
         self.width = list(width)
-        self.is_missing = [False] * QI_LEN
+        if is_missing is None:
+            self.is_missing = [False] * QI_LEN
+        else:
+            self.is_missing = list(is_missing)
         self.middle = list(middle)
         self.allow = [1] * QI_LEN
 
@@ -186,6 +189,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
     """
     nomissing = []
     missing = []
+    sub_partitions = []
     for record in partition.member:
         if record[dim] == '?' or record[dim] == '*':
             missing.append(record)
@@ -194,15 +198,18 @@ def split_missing(partition, dim, pwidth, pmiddle):
     if len(missing) == 0:
         return []
     else:
-        p_nomissing = Partition(nomissing, pwidth[:], pmiddle[:])
+        if len(nomissing) > 0:
+            p_nomissing = Partition(nomissing, pwidth, pmiddle)
+            sub_partitions.append(p_nomissing)
         mhs = missing
         mhs_middle = pmiddle[:]
         mhs_middle[dim] = '*'
         mhs_width = pwidth[:]
         mhs_width[dim] = (0, 0)
-        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
         p_mhs.is_missing[dim] = True
-        return [p_nomissing, p_mhs]
+        sub_partitions.append(p_mhs)
+        return sub_partitions
 
 
 def split_numerical(partition, dim, pwidth, pmiddle):
@@ -228,7 +235,7 @@ def split_numerical(partition, dim, pwidth, pmiddle):
     lhs_middle = pmiddle[:]
     rhs_middle = pmiddle[:]
     lhs_middle[dim], rhs_middle[dim] = split_numerical_value(pmiddle[dim],
-                                                           splitVal, nextVal)
+                                                             splitVal, nextVal)
     lhs = []
     rhs = []
     mhs = []
@@ -254,7 +261,7 @@ def split_numerical(partition, dim, pwidth, pmiddle):
         mhs_middle[dim] = '*'
         mhs_width = pwidth[:]
         mhs_width[dim] = (0, 0)
-        p_mhs = Partition(mhs, mhs_width, mhs_middle)
+        p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
         p_mhs.is_missing[dim] = True
         sub_partitions.append(p_mhs)
     return sub_partitions
@@ -264,6 +271,11 @@ def split_categorical(partition, dim, pwidth, pmiddle):
     sub_partitions = []
     mhs = []
     # normal attributes
+    # print "Partition", len(partition)
+    # if len(partition) == 635:
+    #     print "allow", partition.allow
+    #     print "is_missing", partition.is_missing
+    #     pdb.set_trace()
     split_node = ATT_TREES[dim][pmiddle[dim]]
     if len(split_node.child) == 0:
         return split_missing(partition, dim, pwidth, pmiddle)
@@ -309,7 +321,7 @@ def split_categorical(partition, dim, pwidth, pmiddle):
             mhs_middle = pmiddle[:]
             mhs_middle[dim] = '*'
             mhs_width[dim] = QI_RANGE[dim]
-            p_mhs = Partition(mhs, mhs_width, mhs_middle)
+            p_mhs = Partition(mhs, mhs_width, mhs_middle, partition.is_missing)
             p_mhs.is_missing[dim] = True
             sub_partitions.append(p_mhs)
     return sub_partitions
