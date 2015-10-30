@@ -1,9 +1,6 @@
 import unittest
 
 from semi_partition import semi_partition
-from mondrian import mondrian
-from mondrian import mondrian_delete_missing
-from mondrian import mondrian_split_missing
 # from utils.read_data import read_data, read_tree
 from models.gentree import GenTree
 from models.numrange import NumRange
@@ -37,81 +34,6 @@ def init():
 
 
 class functionTest(unittest.TestCase):
-    def test1_mondrian(self):
-        init()
-        data = [['6', '1', 'haha'],
-                ['6', '1', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '1', 'hha'],
-                ['4', '2', 'hha'],
-                ['4', '3', 'hha'],
-                ['4', '4', 'hha']]
-        result, eval_r = mondrian(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 200.0 / 72) < 0.05)
-
-    def test2_mondrian(self):
-        init()
-        data = [['6', '1', 'haha'],
-                ['6', '1', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '1', 'hha'],
-                ['4', '1', 'hha'],
-                ['1', '1', 'hha'],
-                ['2', '1', 'hha']]
-        result, eval_r = mondrian(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 100.0 / 8) < 0.05)
-
-    def test_mondrian_incompelte(self):
-        init()
-        data = [['6', '?', 'haha'],
-                ['6', '?', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '?', 'hha'],
-                ['4', '?', 'hha'],
-                ['4', '3', 'hha'],
-                ['4', '4', 'hha']]
-        result, eval_r = mondrian(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
-
-    def test_mondrian_delete_incompelte(self):
-        init()
-        data = [['6', '?', 'haha'],
-                ['6', '?', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '?', 'hha'],
-                ['4', '?', 'hha'],
-                ['4', '3', 'hha'],
-                ['4', '4', 'hha']]
-        result, eval_r = mondrian_delete_missing(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 51.38) < 0.05)
-
-    def test_mondrian_split_incompelte(self):
-        init()
-        data = [['6', '?', 'haha'],
-                ['6', '?', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '?', 'hha'],
-                ['4', '?', 'hha'],
-                ['4', '3', 'hha'],
-                ['4', '4', 'hha']]
-        result, eval_r = mondrian_split_missing(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 200.0 / 144) < 0.05)
-
     def test_semi_partition(self):
         init()
         data = [['6', '1', 'haha'],

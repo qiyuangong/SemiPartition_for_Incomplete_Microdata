@@ -475,7 +475,7 @@ def check_splitable(partition):
     return True
 
 
-def init(att_trees, data, K, QI_num=-1):
+def init(att_trees, data, k, QI_num=-1):
     """
     reset all global variables
     """
@@ -490,12 +490,12 @@ def init(att_trees, data, K, QI_num=-1):
         QI_LEN = len(data[0]) - 1
     else:
         QI_LEN = QI_num
-    GL_K = K
+    GL_K = k
     RESULT = []
     QI_RANGE = []
 
 
-def semi_partition(att_trees, data, K, QI_num=-1):
+def semi_partition(att_trees, data, k, QI_num=-1):
     """
     Mondrian for l-diversity.
     This fuction support both numeric values and categoric values.
@@ -503,7 +503,7 @@ def semi_partition(att_trees, data, K, QI_num=-1):
     For categoric values, each iterator is a split on GH.
     The final result is returned in 2-dimensional list.
     """
-    init(att_trees, data, K, QI_num)
+    init(att_trees, data, k, QI_num)
     result = []
     middle = []
     wtemp = []
@@ -521,9 +521,11 @@ def semi_partition(att_trees, data, K, QI_num=-1):
     anonymize(whole_partition)
     rtime = float(time.time() - start_time)
     ncp = 0.0
+    mp = 0.0
     for partition in RESULT:
         p_ncp = []
         r_ncp = 0.0
+        raw_missing = 0
         for i in range(QI_LEN):
             p_ncp.append(get_normalized_width(partition, i))
         temp = partition.middle
@@ -531,22 +533,29 @@ def semi_partition(att_trees, data, K, QI_num=-1):
             result.append(temp[:] + [record[-1]])
             for i in range(QI_LEN):
                 if record[i] == '?' or record[i] == '*':
+                    raw_missing += 1
                     continue
                 else:
                     r_ncp += p_ncp[i]
         ncp += r_ncp
+        if raw_missing > 0:
+            mp += raw_missing
     # covert to NCP percentage
     ncp /= QI_LEN
     ncp /= len(data)
     ncp *= 100
+    mp /= QI_LEN
+    mp /= len(data)
+    mp *= 100
     if len(result) != len(data):
         print "Losing records during anonymization!!"
         pdb.set_trace()
     if __DEBUG:
-        print "K=%d" % K
+        print "K=%d" % k
         print "size of partitions"
         print len(RESULT)
         temp = [len(t) for t in RESULT]
         print sorted(temp)
         print "NCP = %.2f %%" % ncp
-    return (result, (ncp, rtime))
+        print "Missing Pollution = %.2f %%" % mp
+    return (result, (ncp, rtime, mp))
