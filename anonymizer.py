@@ -90,9 +90,9 @@ def get_result_dataset(att_trees, data, k=DEFAULT_K, n=10):
             print "Average NCP %0.2f" % ncp + "%"
             print "Running time %0.2f" % rtime + "seconds"
             print "Missing Pollution = %.2f %%" % pollution + "%"
-        all_ncp.append(round(eval_result[0], 2))
-        all_rtime.append(round(eval_result[1], 2))
-        all_pollution.append(round(eval_result[2], 2))
+        all_ncp.append(round(ncp, 2))
+        all_rtime.append(round(rtime, 2))
+        all_pollution.append(round(pollution, 2))
     print "All NCP", all_ncp
     print "All Running time", all_rtime
     print "Missing Pollution", all_pollution
@@ -143,19 +143,17 @@ def get_result_missing(att_trees, data, k=DEFAULT_K, n=10):
                 flag = True
         if flag:
             raw_missing_record += 1
-    print "Missing Percentage %.2f" % (raw_missing * 100.0 / (length * qi_len)) + '%%'
+    # print "Missing Percentage %.2f" % (raw_missing * 100.0 / (length * qi_len)) + '%%'
     # each evaluation varies add 5% missing values
     check_percentage = [5, 10, 25, 50, 75]
     datasets = []
     for p in check_percentage:
         joint = int(0.01 * p * length * qi_len) - raw_missing
         datasets.append(joint)
-    print datasets
     all_ncp = []
     all_rtime = []
     all_pollution = []
     for i, joint in enumerate(datasets):
-        print "check_percentage", check_percentage[i]
         ncp = rtime = pollution = 0.0
         for j in range(n):
             gen_missing_dataset(data, joint)
@@ -169,14 +167,15 @@ def get_result_missing(att_trees, data, k=DEFAULT_K, n=10):
         rtime /= n
         pollution /= n
         if __DEBUG:
+            print "check_percentage", check_percentage[i]
             print "Add missing %d" % joint
             print "Average NCP %0.2f" % ncp + "%"
             print "Running time %0.2f" % rtime + "seconds"
             print "Missing Pollution = %.2f" % pollution + "%"
             print '#' * 30
-        all_ncp.append(round(eval_result[0], 2))
-        all_rtime.append(round(eval_result[1], 2))
-        all_pollution.append(round(eval_result[2], 2))
+        all_ncp.append(round(ncp, 2))
+        all_rtime.append(round(rtime, 2))
+        all_pollution.append(round(pollution, 2))
     print "All NCP", all_ncp
     print "All Running time", all_rtime
     print "Missing Pollution", all_pollution
