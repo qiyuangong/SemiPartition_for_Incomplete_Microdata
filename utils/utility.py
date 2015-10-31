@@ -16,7 +16,8 @@ def missing_rate(data):
     mrr = 0.0
     att_m = []
     number_record = len(data)
-    r_len = len(data[0])
+    # only compute missing rate from qid
+    r_len = len(data[0]) - 1
     att_m = [False] * r_len
     for record in data:
         flag = False
