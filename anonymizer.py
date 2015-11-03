@@ -11,7 +11,7 @@ from utils.utility import missing_rate
 import sys, copy, random
 # sys.setrecursionlimit(500000)
 
-__DEBUG = True
+__DEBUG = False
 DEFAULT_K = 10
 
 
@@ -108,7 +108,7 @@ def get_result_qi(att_trees, data, k=DEFAULT_K):
     all_ncp = []
     all_rtime = []
     all_pollution = []
-    for i in reversed(range(1, ls)):
+    for i in range(1, ls):
         _, eval_result = semi_partition(att_trees, data, k, i)
         data = copy.deepcopy(data_back)
         all_ncp.append(round(eval_result[0], 2))
