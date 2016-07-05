@@ -1,6 +1,6 @@
 Semi_Partition
 ===========================
-Semi_Partition is a Top-down greedy data anonymization algorithm for relational dataset. It's more efficient than Mondrian, which is proposed by Kristen LeFevre in his papers[1]. (To our knowledge, Mondrian is the fastest local recording algorithm, which ensure good data utility at the same time. Although LeFevre gave the pseudocode in his papers, the original source code is not available. You can find the Java implementation in Anonymization Toolbox[2].)
+Semi_Partition is a Top-down greedy data anonymization algorithm for relational dataset. It's more effective than Mondrian, which is proposed by Kristen LeFevre in his papers[1]. (To our knowledge, Mondrian is the fastest local recording algorithm, which ensure good data utility at the same time. Although LeFevre gave the pseudocode in his papers, the original source code is not available. You can find the Java implementation in Anonymization Toolbox[2].)
 
 This repository is an **open source python implementation for Semi_Partition**. I implement this algorithm in python for further study.
 
@@ -37,6 +37,7 @@ My Implementation is based on Python 2.7 (not Python 3.0). Please make sure your
 [3] [ARX- Powerful Data Anonymization](https://github.com/arx-deidentifier/arx)
 
 [4] G. Ghinita, P. Karras, P. Kalnis, N. Mamoulis. Fast data anonymization with low information loss. Proceedings of the 33rd international conference on Very large data bases, VLDB Endowment, 2007, 758-769
+
 ==========================
 by Qiyuan Gong
 qiyuangong@gmail.com
