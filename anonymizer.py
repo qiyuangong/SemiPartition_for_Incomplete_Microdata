@@ -5,10 +5,12 @@ run semi_partition with given parameters
 # !/usr/bin/env python
 # coding=utf-8
 from semi_partition import semi_partition
-from utils.read_data import read_data
-from utils.read_data import read_tree
+from utils.read_informs_data import read_data as read_informs_data
+from utils.read_informs_data import read_tree as read_informs_tree
+from utils.read_adult_data import read_data as read_adult_data
+from utils.read_adult_data import read_tree as read_adult_tree
 from utils.utility import missing_rate
-import sys, copy, random
+import sys, copy, random, cProfile
 # sys.setrecursionlimit(500000)
 
 __DEBUG = False
@@ -157,7 +159,8 @@ def get_result_missing(att_trees, data, k=DEFAULT_K, n=10):
         ncp = rtime = pollution = 0.0
         for j in range(n):
             gen_missing_dataset(data, joint)
-            missing_rate(data)
+            if __DEBUG:
+                missing_rate(data)
             _, eval_result = semi_partition(att_trees, data, k)
             data = copy.deepcopy(data_back)
             ncp += eval_result[0]
@@ -204,16 +207,34 @@ def gen_missing_dataset(data, joint):
 
 if __name__ == '__main__':
     FLAG = ''
-    # redirout = open('log.txt', 'w')
-    # sys.stdout = redirout
-    LEN_ARGV = len(sys.argv)
+    DATA_SELECT = 'a'
+    if __DEBUG:
+        print sys.argv
     try:
-        FLAG = sys.argv[1]
+        DATA_SELECT = sys.argv[1]
     except:
-        pass
+        DATA_SELECT = 'a'
     k = 10
-    RAW_DATA = read_data()
-    ATT_TREES = read_tree()
+    if DATA_SELECT == 'i':
+        print "INFORMS data"
+        RAW_DATA = read_informs_data()
+        # gen_gh_trees(DATA_SELECT)
+        ATT_TREES = read_informs_tree()
+    elif DATA_SELECT == 'a':
+        print "Adult data"
+        RAW_DATA = read_adult_data()
+        # gen_gh_trees(DATA_SELECT)
+        ATT_TREES = read_adult_tree()
+    else:
+        print "Adult data"
+        RAW_DATA = read_adult_data()
+        # gen_gh_trees(DATA_SELECT)
+        ATT_TREES = read_adult_tree()
+    # print '#' * 30
+    try:
+        FLAG = sys.argv[2]
+    except IndexError:
+        FLAG = ''
     if FLAG == 'k':
         get_result_k(ATT_TREES, RAW_DATA)
     elif FLAG == 'qi':
@@ -222,18 +243,23 @@ if __name__ == '__main__':
         get_result_dataset(ATT_TREES, RAW_DATA)
     elif FLAG == 'm':
         get_result_missing(ATT_TREES, RAW_DATA)
-    elif FLAG == 'one':
-        if LEN_ARGV > 1:
-            k = int(sys.argv[2])
-            get_result_one(ATT_TREES, RAW_DATA, k)
+    elif FLAG == '':
+        if __DEBUG:
+            cProfile.run('get_result_one(ATT_TREES, RAW_DATA)')
         else:
             get_result_one(ATT_TREES, RAW_DATA)
-    elif FLAG == '':
-        get_result_one(ATT_TREES, RAW_DATA)
     else:
-        print "Usage: python anonymizer [k | qi | data | one | m]"
-        print "k: varying k, qi: varying qi numbers, data: varying size of dataset, \
-                one: run only once"
-    # anonymized dataset is stored in result
+        try:
+            INPUT_K = int(FLAG)
+            if __DEBUG:
+                cProfile.run('get_result_one(ATT_TREE, DATA, INPUT_K)')
+            else:
+                get_result_one(ATT_TREES, RAW_DATA, INPUT_K)
+        except ValueError:
+            print "Usage: python anonymizer [a | i] [k | qi | data | m | one]"
+            print "a:adult, i:INFORMS"
+            print "k: varying k, qi: varying qi numbers, data: varying size of dataset, \
+                        m: varying missing rate, one: run only once"
+            # anonymized dataset is stored in result
     print "Finish Semi_Partition!!"
     # redirout.close()

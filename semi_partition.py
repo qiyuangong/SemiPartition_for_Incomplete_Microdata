@@ -13,7 +13,7 @@ from models.gentree import GenTree
 from utils.utility import cmp_str
 import time
 
-
+MISSING_TAG = ['*', '?', '-1', '-7', '-8', '-9']
 __DEBUG = False
 QI_LEN = 10
 GL_K = 0
@@ -170,7 +170,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
     missing = []
     isolated_partitions = []
     for record in partition.member:
-        if record[dim] == '?' or record[dim] == '*':
+        if record[dim] in MISSING_TAG:
             missing.append(record)
         else:
             nomissing.append(record)
@@ -257,7 +257,7 @@ def split_categorical(partition, dim, pwidth, pmiddle):
         sub_groups.append([])
     for record in partition.member:
         qid_value = record[dim]
-        if qid_value == '?' or qid_value == '*':
+        if qid_value in MISSING_TAG:
             mhs.append(record)
             continue
         for i, node in enumerate(sub_node):
@@ -520,7 +520,7 @@ def semi_partition(att_trees, data, k, QI_num=-1):
         for record in partition.member:
             result.append(temp[:] + [record[-1]])
             for i in range(QI_LEN):
-                if record[i] == '?' or record[i] == '*':
+                if record[i] in MISSING_TAG:
                     raw_missing += 1
                     continue
                 else:
