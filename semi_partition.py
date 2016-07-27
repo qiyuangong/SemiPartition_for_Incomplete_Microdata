@@ -13,7 +13,6 @@ from models.gentree import GenTree
 from utils.utility import cmp_str
 import time
 
-MISSING_TAG = ['*', '?', '-1', '-7', '-8', '-9']
 __DEBUG = False
 QI_LEN = 10
 GL_K = 0
@@ -170,7 +169,7 @@ def split_missing(partition, dim, pwidth, pmiddle):
     missing = []
     isolated_partitions = []
     for record in partition.member:
-        if record[dim] in MISSING_TAG:
+        if record[dim] == '*':
             missing.append(record)
         else:
             nomissing.append(record)
@@ -257,7 +256,7 @@ def split_categorical(partition, dim, pwidth, pmiddle):
         sub_groups.append([])
     for record in partition.member:
         qid_value = record[dim]
-        if qid_value in MISSING_TAG:
+        if qid_value == '*':
             mhs.append(record)
             continue
         for i, node in enumerate(sub_node):
@@ -513,21 +512,26 @@ def semi_partition(att_trees, data, k, QI_num=-1):
     for partition in RESULT:
         p_ncp = []
         r_ncp = 0.0
-        raw_missing = 0
         for i in range(QI_LEN):
             p_ncp.append(get_normalized_width(partition, i))
         temp = partition.middle
+        for i in range(QI_LEN):
+            raw_missing, anon_missing = 0, 0
+            if temp[i] == '*':
+                anon_missing += len(partition)
+            for record in partition.member:
+                if record[i] == '*':
+                    raw_missing += 1
+            if raw_missing > 0:
+                mp += anon_missing - raw_missing
         for record in partition.member:
             result.append(temp[:] + [record[-1]])
             for i in range(QI_LEN):
-                if record[i] in MISSING_TAG:
-                    raw_missing += 1
+                if record[i] == '*':
                     continue
                 else:
                     r_ncp += p_ncp[i]
         ncp += r_ncp
-        if raw_missing > 0:
-            mp += raw_missing
     # covert to NCP percentage
     ncp /= QI_LEN
     ncp /= len(data)

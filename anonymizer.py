@@ -140,7 +140,7 @@ def get_result_missing(att_trees, data, k=DEFAULT_K, n=10):
     for record in data:
         flag = False
         for value in record:
-            if value == '?' or value == '*':
+            if value == '*':
                 raw_missing += 1
                 flag = True
         if flag:
@@ -195,10 +195,10 @@ def gen_missing_dataset(data, joint):
         pos = random.randrange(length)
         for i in range(qi_len):
             col = random.randrange(qi_len)
-            if data[pos][col] == '?' or data[pos][col] == '*':
+            if data[pos][col] == '*':
                 continue
             else:
-                data[pos][col] = '?'
+                data[pos][col] = '*'
                 break
         else:
             continue
